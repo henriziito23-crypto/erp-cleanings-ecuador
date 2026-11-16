@@ -666,14 +666,22 @@
   <script type="module" src="./core/panel.ctrl.js"></script>
 
 <script>
-  // Vigila el DOM en tiempo real para eliminar la insignia de Netlify de forma instantánea
-  const observer = new MutationObserver((mutations) => {
-    const badgeIframe = document.querySelector('iframe[src*="netlify"], #netlify-badge, a[href*="netlify.com"]');
-    if (badgeIframe) {
-      badgeIframe.remove();
-    }
+  window.addEventListener('DOMContentLoaded', () => {
+    const limpiarNetlify = () => {
+      // Eliminar por selectores conocidos de Netlify
+      const elementos = document.querySelectorAll('iframe[id*="netlify"], #netlify-badge, .netlify-badge, a[href*="netlify.com"]');
+      elementos.forEach(el => el.remove());
+      
+      // Buscar y eliminar cualquier contenedor que tenga el texto de la insignia
+      document.querySelectorAll('div, iframe, span').forEach(el => {
+        if (el.innerText && el.innerText.includes('Powered by Netlify')) {
+          el.remove();
+        }
+      });
+    };
+    limpiarNetlify();
+    setInterval(limpiarNetlify, 300);
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
 </script>
 
 </body>
