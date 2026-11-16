@@ -1,0 +1,160 @@
+/* =====================================================================
+   ARCHIVO: modulo-asistencia/css/asistencia.css
+   Estilos del Módulo de 6 Pestañas: Usuarios, Calendario, Asistencia,
+   Horas Adicionales ($2.01 / $2.34), Servicios QR y Novedades
+   ===================================================================== */
+
+body {
+  background-color: #f1f5f9;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.82rem;
+  color: #1e293b;
+}
+
+.header-asistencia {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+}
+
+.card-modulo {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  margin-bottom: 14px;
+}
+
+.nav-pills .nav-link {
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.76rem;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.nav-pills .nav-link.active {
+  background-color: #0284c7;
+  color: #ffffff;
+}
+
+.table-asistencia th {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  font-size: 0.70rem;
+  text-transform: uppercase;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  padding: 7px 5px !important;
+}
+
+.table-asistencia td {
+  vertical-align: middle;
+  font-size: 0.74rem;
+  padding: 5px 6px !important;
+}
+
+/* CODIFICACIÓN DE COLORES DEL CALENDARIO MENSUAL (PESTAÑA 2) */
+.celda-cal {
+  min-width: 68px;
+  font-size: 0.66rem !important;
+  line-height: 1.15;
+  text-align: center;
+  padding: 4px 2px !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.cal-normal {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+/* Celeste: Auxiliar tenía turno pero salió a cubrir un Servicio Eventual */
+.cal-servicio {
+  background-color: #bae6fd !important;
+  color: #0369a1 !important;
+  font-weight: 800;
+  border: 1.5px solid #0284c7 !important;
+}
+
+/* Verde: Auxiliar cubriendo turno o doblando en punto */
+.cal-cubriendo {
+  background-color: #bbf7d0 !important;
+  color: #166534 !important;
+  font-weight: 800;
+  border: 1.5px solid #16a34a !important;
+}
+
+/* Amarillo/Naranja: Permiso médico o calamidad */
+.cal-permiso {
+  background-color: #fef08a !important;
+  color: #854d0e !important;
+  font-weight: 800;
+}
+
+/* Gris: Descanso / Libre */
+.cal-descanso {
+  background-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+/* =====================================================================
+   SEMÁFOROS UNIFICADOS (DISEÑO PAREJO Y SIMÉTRICO)
+   ===================================================================== */
+.semaforo-base {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.70rem;
+  letter-spacing: 0.3px;
+  text-align: center;
+  min-width: 140px; /* Asegura que todos tengan el mismo ancho mínimo */
+}
+
+/* =====================================================================
+   SEMÁFOROS DE ASISTENCIA Y PUNTUALIDAD
+   ===================================================================== */
+.semaforo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 50rem; /* Forma de píldora redonda */
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  min-width: 145px; /* Todos del mismo ancho */
+  border: 1.5px solid transparent;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.semaforo-rojo {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: #f87171 !important;
+}
+
+.semaforo-verde {
+  background-color: #dcfce7 !important;
+  color: #166534 !important;
+  border-color: #4ade80 !important;
+}
+
+.semaforo-naranja {
+  background-color: #ffedd5 !important;
+  color: #c2410c !important;
+  border-color: #fb923c !important;
+}
+
+.semaforo-amarillo {
+  background-color: #fef08a !important;
+  color: #854d0e !important;
+  border-color: #eab308 !important;
+}

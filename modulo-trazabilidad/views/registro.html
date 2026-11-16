@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Registro Diario de Limpieza - Cleanings ERP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/estilos-pantalla.css">
+</head>
+<body class="p-3">
+  <!-- ========================================== -->
+  <!-- VISTA 1: FORMULARIO PRINCIPAL DE REGISTRO  -->
+  <!-- ========================================== -->
+  <div id="moduloFormulario" class="container" style="max-width: 680px; padding: 0;">
+    <div class="header-card d-flex justify-content-between align-items-center">
+      <div>
+        <h6 class="mb-0 fw-bold">FICHA DE REGISTRO Y TRAZABILIDAD DE LIMPIEZA</h6>
+        <small style="opacity: 0.92;" id="lblSubtituloContrato">Estándar CL-OP-0030 | Cargando contrato...</small>
+      </div>
+      <button type="button" class="btn btn-outline-light btn-sm fw-bold shadow-sm" id="btnVolverMenu">
+        ← Menú
+      </button>
+    </div>
+
+    <div class="form-card">
+      <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom flex-wrap gap-2">
+        <div>
+          <span class="text-muted small">Auxiliar Responsable:</span>
+          <div class="fw-bold text-dark fs-6" id="lblAuxiliar">Cargando...</div>
+          <small class="text-primary fw-bold" id="lblRolIndicador"></small>
+        </div>
+        <div id="badgeContenedor">
+          <span class="badge bg-primary badge-modelo" id="badgeModelo">MODELO: SEMICRÍTICA</span>
+        </div>
+      </div>
+
+      <form id="formRegistro">
+        <!-- 0. CONTRATO / SEDE (Visible para trazabilidad multi-contrato) -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-primary">0. Contrato / Cliente Activo *</label>
+          <select class="form-select fw-bold border-primary" id="selContrato" required>
+            <option value="">Cargando contrato...</option>
+          </select>
+        </div>
+
+        <!-- 1. PISO Y 2. ÁREA -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-bold text-muted">1. Selecciona Piso / Sede *</label>
+            <select class="form-select fw-semibold" id="selPiso" required>
+              <option value="">Seleccione piso...</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold text-muted">2. Selecciona Área *</label>
+            <select class="form-select fw-semibold" id="selArea" required disabled>
+              <option value="">Primero seleccione el piso...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 3. TIPO DE LIMPIEZA (CONCURRENTE Y TERMINAL) -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-muted">3. Tipo de Limpieza *</label>
+          <select class="form-select fw-semibold" id="selTipo" required>
+            <option value="Concurrente">Concurrente</option>
+            <option value="Terminal">Terminal</option>
+          </select>
+        </div>
+
+        <!-- 4. CHECKLIST EN DOBLE COLUMNA -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label small fw-bold text-muted mb-0">4. Checklist de Cumplimiento *</label>
+            <div>
+              <button type="button" class="btn btn-link btn-sm p-0 me-2 text-decoration-none" id="btnMarcarTodos">Marcar todos</button>
+              <span class="text-muted">|</span>
+              <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-decoration-none text-secondary" id="btnDesmarcarTodos">Desmarcar</button>
+            </div>
+          </div>
+
+          <div class="row g-2" id="contenedorChecklist">
+            <div class="col-12 text-center py-4 text-muted small bg-light rounded-3 border">
+              Seleccione un piso y un área para desplegar el checklist correspondiente.
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. OBSERVACIONES -->
+        <div class="mb-4">
+          <label class="form-label small fw-bold text-muted">5. Observaciones / Novedades</label>
+          <textarea class="form-control" id="txtObservaciones" rows="2" placeholder="Sin novedades"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-submit shadow-sm" id="btnGuardar">
+          💾 Registrar Limpieza
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- VISTA 2: MÓDULO REGISTRO EXITOSO           -->
+  <!-- ========================================== -->
+  <div id="moduloExito" style="display: none; max-width: 520px; margin: 20px auto; background: #ffffff; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.12); border: 1px solid #e2e8f0; overflow: hidden;">
+    <div class="header-exito">
+      <div style="font-size: 1.35rem; font-weight: 800; letter-spacing: 0.5px;">
+        ✓ REGISTRO EXITOSO
+      </div>
+      <small style="opacity: 0.95;">Trazabilidad Bioseguridad Hospitalaria — CL-OP-0030</small>
+    </div>
+
+    <div class="p-4 text-center">
+      <!-- SELLO INSTITUCIONAL -->
+      <div class="my-3" style="min-height: 80px; display: flex; align-items: center; justify-content: center;">
+        <img 
+          src="https://drive.google.com/thumbnail?id=14SqUGvm7kp9-WbKZI85KwjSr-JCUUoXO&sz=w500" 
+          alt="Sello Institucional Cleanings Ecuador" 
+          style="max-height: 75px; max-width: 100%; object-fit: contain;">
+      </div>
+
+      <div class="fw-bold text-dark mb-4" style="font-size: 0.95rem; letter-spacing: 1px;">
+        EMPRESA CLEANINGS ECUADOR
+      </div>
+
+      <!-- DETALLE DE AUDITORÍA -->
+      <div class="caja-datos text-start small mb-4">
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Contrato / Cliente:</span>
+          <strong class="text-dark text-end" id="resContrato">-</strong>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Fecha de Ejecución:</span>
+          <strong class="text-dark" id="resFecha">-</strong>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Hora de Registro:</span>
+          <strong class="text-dark" id="resHora">-</strong>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Auxiliar Responsable:</span>
+          <strong class="text-primary text-end" id="resAuxiliar">-</strong>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Ubicación Atendida:</span>
+          <span class="fw-semibold text-dark text-end" id="resUbicacion">-</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Cumplimiento Checklist:</span>
+          <strong class="text-success" id="resCumplimiento">100%</strong>
+        </div>
+        <div class="d-flex justify-content-between pt-1">
+          <span class="text-muted">Modelo Registrado:</span>
+          <span class="badge bg-success" id="resHoja">-</span>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-primary w-100 py-3 fw-bold shadow-sm" id="btnNuevoRegistro">
+        ← Volver al Módulo de Registro
+      </button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="../js/registro.ctrl.js"></script>
+</body>
+</html>

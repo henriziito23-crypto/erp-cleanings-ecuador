@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Control de Asistencia y Nómina - Cleanings ERP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/asistencia.css">
+</head>
+<body class="p-2 p-md-3">
+  <div class="container-fluid" style="max-width: 1380px;">
+
+    <!-- ENCABEZADO -->
+    <div class="header-asistencia d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
+      <div>
+        <h5 class="m-0 fw-bold">CONTROL DE ASISTENCIA, NÓMINA Y CREACIÓN DE USUARIOS</h5>
+        <small style="opacity: 0.92;">Sincronizado automáticamente con Cámara Timestamp QR y Módulo de Supervisión — Cleanings ERP</small>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-light text-dark fw-bold px-3 py-2" id="lblUsuarioActivoAsistencia">-</span>
+        <button type="button" class="btn btn-outline-light btn-sm fw-bold px-3" id="btnVolverHubERP">
+          ← Menú Principal ERP
+        </button>
+      </div>
+    </div>
+
+    <!-- FILTRO GLOBAL: CONTRATO, MES Y AUXILIAR (APLICA A TODAS LAS PESTAÑAS) -->
+    <div class="card-modulo p-3 no-print">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label small fw-bold text-primary m-0">🏢 1. Filtrar por Contrato / Sede:</label>
+          <select class="form-select form-select-sm fw-bold border-primary" id="selContratoGlobal"></select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-bold text-primary m-0">📅 2. Mes de Gestión / Consulta:</label>
+          <input type="month" class="form-control form-control-sm fw-bold border-primary" id="selMesGlobal">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-bold text-secondary m-0">👤 3. Filtrar por Auxiliar:</label>
+          <select class="form-select form-select-sm fw-bold" id="selPersonaGlobal">
+            <option value="TODOS">TODOS LOS AUXILIARES DEL CONTRATO</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-2">
+          <button type="button" class="btn btn-dark btn-sm w-100 fw-bold" onclick="window.print()">
+            🖨️ Exportar a PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NAVEGACIÓN 6 PESTAÑAS -->
+    <ul class="nav nav-pills nav-fill gap-1 mb-3 p-2 bg-white rounded border shadow-sm no-print" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab1Usuarios">
+          👥 1. Usuarios y Contratos
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab2Calendario">
+          📅 2. Cronograma (Calendario)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab3Asistencia">
+          📷 3. Registro de Asistencia (QR)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab4HorasAdic">
+          💲 4. Horas Adicionales y Bonos
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab5Servicios">
+          🚀 5. Servicios Eventuales
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab6Novedades">
+          🔔 6. Notificaciones Supervisión
+        </button>
+      </li>
+    </ul>
+
+    <div id="msgFeedbackAsistencia" class="alert alert-success py-2 px-3 mb-3 small fw-bold text-center shadow-sm no-print" style="display: none;"></div>
+
+    <div class="tab-content">
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 1: CREACIÓN DE USUARIOS Y ASIGNACIÓN DE CONTRATO          -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade show active" id="tab1Usuarios">
+        <div class="card-modulo p-3 no-print">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold text-primary small" id="lblTituloFormUsuario">
+              ➕ REGISTRAR NUEVO USUARIO Y ASIGNAR A CONTRATO
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="btnCancelarEdicionUsuario" style="display: none;">
+              Cancelar Edición ✖
+            </button>
+          </div>
+
+          <form id="formCrearUsuario" class="row g-2 align-items-end">
+            <input type="hidden" id="editUsuarioId" value="">
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">Cédula *</label>
+              <input type="text" class="form-control form-control-sm fw-bold" id="usuCedula" placeholder="1700000000" required>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">PIN Acceso ERP *</label>
+              <input type="text" class="form-control form-control-sm fw-bold text-center border-primary" id="usuPin" placeholder="Ej: 3005" required>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold m-0">Apellidos y Nombres *</label>
+              <input type="text" class="form-control form-control-sm text-uppercase" id="usuNombre" placeholder="Ej: JUAN PÉREZ" required>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold text-primary m-0">Contrato Base *</label>
+              <select class="form-select form-select-sm fw-bold border-primary" id="usuContratoAsignado" required></select>
+            </div>
+            <!-- 🔴 NUEVO: CONTRATO SECUNDARIO -->
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold text-info m-0">Contrato Secundario</label>
+              <select class="form-select form-select-sm fw-bold border-info" id="usuContratoSecundario">
+                <option value="">-- Ninguno --</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">Rol ERP *</label>
+              <select class="form-select form-select-sm fw-bold" id="usuRol">
+                <option value="AUXILIAR">AUXILIAR</option>
+                <option value="SUPERVISOR">SUPERVISOR</option>
+                <option value="CONTROL">CONTROL GENERAL</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small fw-bold m-0">Cargo / Etiqueta *</label>
+              <input type="text" class="form-control form-control-sm text-uppercase" id="usuEtiqueta" value="AUXILIAR DE LIMPIEZA" required>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small fw-bold m-0">Teléfono Celular</label>
+              <input type="text" class="form-control form-control-sm" id="usuTelefono" placeholder="0990000000">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">Sueldo Base ($)</label>
+              <input type="number" step="0.01" class="form-control form-control-sm fw-bold" id="usuSueldo" value="460.00">
+            </div>
+            <div class="col-12 col-md-4">
+              <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-2" id="btnGuardarUsuario">
+                💾 Guardar Usuario y Vincular al Contrato
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card-modulo p-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold text-dark small">NÓMINA DE PERSONAL REGISTRADO EN EL CONTRATO SELECCIONADO</span>
+            <span class="badge bg-dark" id="badgeTotalUsuarios">0 trabajadores</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>CÉDULA</th>
+                  <th>PIN</th>
+                  <th>TRABAJADOR</th>
+                  <th>CONTRATO ASIGNADO</th>
+                  <th>CARGO</th>
+                  <th>ROL</th>
+                  <th>TELÉFONO</th>
+                  <th>SUELDO BASE</th>
+                  <th class="no-print">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyUsuarios"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 2: CRONOGRAMA MENSUAL (CLIC EN CELDA PARA DÍA O SEMANA)   -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab2Calendario">
+        <div class="card-modulo p-3 no-print">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <span class="fw-bold text-primary small">
+                📅 CALENDARIO INTERACTIVO DE TURNOS: Haga clic directamente sobre cualquier día/casilla de un auxiliar para asignarle turno a ese día o a toda la semana.
+              </span>
+              <div class="small text-muted mt-1" id="lblSubtituloTurnosContrato">-</div>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="btnPrecargarMesAnterior">
+                🔄 Precargar / Copiar Turnos del Mes Anterior
+              </button>
+              <button type="button" class="btn btn-sm btn-success fw-bold" onclick="window.print()">
+                📲 Exportar Calendario PDF para WhatsApp
+              </button>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-2 pt-2 border-top small">
+            <span class="fw-bold text-muted">Colores Automáticos:</span>
+            <span class="badge cal-normal border">T1/T2/T3/T4/BH: Turno del Contrato</span>
+            <span class="badge cal-servicio">CELESTE: Salió a Servicio Eventual</span>
+            <span class="badge cal-cubriendo">VERDE: Cubriendo Turno / Doblando</span>
+            <span class="badge cal-permiso">AMARILLO: Permiso Médico / Calamidad</span>
+            <span class="badge cal-descanso">GRIS: Libre / Descanso</span>
+          </div>
+        </div>
+
+        <div class="card-modulo p-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="m-0 fw-bold text-dark" id="lblTituloCalendarioPDF">CRONOGRAMA MENSUAL DE TURNOS OPERATIVOS</h6>
+            <span class="badge bg-primary" id="badgeMesCalendario">-</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-sm m-0 table-asistencia">
+              <thead id="theadCalendario"></thead>
+              <tbody id="tbodyCalendario"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 3: REGISTRO DE ASISTENCIA (SOLO RECEPCIÓN Y CONTROL)      -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab3Asistencia">
+        <div class="card-modulo p-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div>
+              <span class="fw-bold text-dark small">
+                📋 SÁBANA MENSUAL DE RECEPCIÓN DE ASISTENCIA EN PUNTOS Y SEMÁFORO DE SUPERVISIÓN
+              </span>
+              <div class="text-muted" style="font-size: 0.72rem;">
+                Vista exclusiva de control. Los registros ingresan automáticamente desde el módulo externo de timbrado QR Timestamp (Filtrado por Contrato, Mes y Auxiliar en la barra superior).
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+<thead>
+                <tr>
+                  <th>FECHA</th>
+                  <th>CONTRATO</th>
+                  <th>AUXILIAR</th>
+                  <th>ESTADO CRONOGRAMA</th>
+                  <th>HORARIO PROGRAMADO</th>
+                  <th>SEMÁFORO INGRESO</th>
+                  <th>SEMÁFORO SALIDA</th>
+                  <th>ENTRADA (TS)</th>
+                  <th>SALIDA (TS)</th>
+                  <th>H. REALES</th>
+                  <th>FOTO IN</th>
+                  <th>FOTO OUT</th>
+                  <th>DETALLE</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAsistenciaPuntos"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 4: HORAS ADICIONALES ($2.01 / $2.34) Y BONOS POR MES      -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab4HorasAdic">
+        <div class="row g-2 mb-3">
+          <div class="col-6 col-md-3">
+            <div class="kpi-nomina border-start border-4 border-primary">
+              <div class="small text-muted fw-bold">H. ADICIONAL PUNTO ($2.01)</div>
+              <div class="fs-5 fw-bold text-primary" id="kpiHorasPunto">0.00 h ($0.00)</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="kpi-nomina border-start border-4 border-info">
+              <div class="small text-muted fw-bold">H. FIN DE OBRA ($2.34)</div>
+              <div class="fs-5 fw-bold text-info" id="kpiHorasFinObra">0.00 h ($0.00)</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="kpi-nomina border-start border-4 border-danger">
+              <div class="small text-muted fw-bold">PENDIENTE PAGO (ROJO)</div>
+              <div class="fs-5 fw-bold text-danger" id="kpiMontoPendiente">$0.00</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="kpi-nomina border-start border-4 border-success">
+              <div class="small text-muted fw-bold">APROBADO DÍA 19 (VERDE)</div>
+              <div class="fs-5 fw-bold text-success" id="kpiMontoAprobado">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asignar Bono Mensual o Ajuste al Auxiliar en el Mes Seleccionado -->
+        <div class="card-modulo p-3 no-print">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <span class="fw-bold text-primary small">
+              ➕ ASIGNAR BONO MENSUAL O AJUSTE AL AUXILIAR (USA EL CONTRATO Y MES DEL FILTRO SUPERIOR)
+            </span>
+            <button type="button" class="btn btn-sm btn-success fw-bold" id="btnAprobarTodoControl">
+              ✅ Aprobar Todos los Pendientes para Pago (Corte Día 19 - Solo CONTROL)
+            </button>
+          </div>
+          <form id="formHoraAdicionalManual" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold m-0">Auxiliar del Contrato *</label>
+              <select class="form-select form-select-sm fw-bold border-primary" id="hadUsuario" required></select>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small fw-bold m-0">Tipo de Bono / Hora Adicional *</label>
+              <select class="form-select form-select-sm fw-bold border-primary" id="hadTipo">
+                <option value="BONO_MENSUAL">Bono Mensual Definido ($ Monto Fijo)</option>
+                <option value="HORA_ADICIONAL_PUNTO">Ajuste Hora Adicional Punto ($2.01/h)</option>
+                <option value="HORA_FIN_DE_OBRA">Ajuste Hora Fin de Obra ($2.34/h)</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0" id="lblCantHorasOBono">Monto Bono ($)</label>
+              <input type="number" step="0.25" class="form-control form-control-sm fw-bold text-center" id="hadCantidad" value="20.00" required>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold m-0">Concepto / Detalle del Bono *</label>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control" id="hadMotivo" placeholder="Ej: Bono responsabilidad / puntualidad mes" required>
+                <button type="submit" class="btn btn-primary fw-bold">+ Cargar al Mes</button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="card-modulo p-3">
+          <div class="fw-bold text-dark small mb-2">
+            DETALLE AUTOMÁTICO DE HORAS ADICIONALES ($2.01 / $2.34) Y BONOS DEL MES FILTRADO:
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>FECHA / PERIODO</th>
+                  <th>CONTRATO</th>
+                  <th>AUXILIAR</th>
+                  <th>CONCEPTO</th>
+                  <th>ORIGEN</th>
+                  <th>H. TURNO BASE</th>
+                  <th>H. REALES</th>
+                  <th>CANT. ADICIONAL</th>
+                  <th>TARIFA</th>
+                  <th>TOTAL ($)</th>
+                  <th>DETALLE DEL CRUCE AUTOMÁTICO</th>
+                  <th>ESTADO (CORTE 19)</th>
+                  <th class="no-print">APROBAR</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyHorasAdicionales"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 5: RECEPCIÓN DE SERVICIOS EVENTUALES (DESDE SUPERVISIÓN)  -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab5Servicios">
+        <div class="card-modulo p-3 no-print">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <div class="fw-bold text-primary small">
+                🚀 RECEPCIÓN AUTOMÁTICA DE SERVICIOS EVENTUALES CREADOS EN EL MÓDULO DE SUPERVISIÓN
+              </div>
+              <div class="small text-muted">
+                Aquí llegan automáticamente los auxiliares asignados por Supervisión a servicios eventuales (ej. Akana 3), sus timbrados de entrada/salida con QR y el cruce automático de horas excedentes a <strong>$2.34/h</strong>.
+              </div>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <label class="small fw-bold m-0">Filtrar por Servicio:</label>
+              <select class="form-select form-select-sm fw-bold border-primary" id="srvFiltroServicio" style="min-width: 230px;">
+                <option value="TODOS">TODOS LOS SERVICIOS DEL MES</option>
+              </select>
+              <a href="../../modulo-supervision/views/supervision.html" class="btn btn-sm btn-dark fw-bold">
+                👷 Ir a Módulo Supervisión
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-modulo p-3">
+          <div class="fw-bold text-dark small mb-2">
+            REGISTROS DE ENTRADA Y SALIDA EN SERVICIOS EVENTUALES Y CRUCE CON TURNO BASE:
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>FECHA</th>
+                  <th>SERVICIO EVENTUAL</th>
+                  <th>AUXILIAR ASIGNADO</th>
+                  <th>CONTRATO BASE</th>
+                  <th>ENTRADA (QR)</th>
+                  <th>SALIDA (QR)</th>
+                  <th>TOTAL H. SERVICIO</th>
+                  <th>H. TURNO BASE DESCONTADAS</th>
+                  <th>H. ADICIONALES FIN DE OBRA ($2.34)</th>
+                  <th>FOTO TIMESTAMP</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyServiciosMarcaciones"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 6: NOTIFICACIONES DE PERMISOS Y CAMBIOS (DE SUPERVISIÓN)  -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab6Novedades">
+        <div class="card-modulo p-3 no-print">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <div class="fw-bold text-primary small">
+                🔔 BANDEJA DE NOTIFICACIONES Y EVIDENCIAS EMITIDAS POR EL MÓDULO DE SUPERVISIÓN
+              </div>
+              <div class="small text-muted">
+                Muestra todos los cambios de turno, coberturas, salidas a servicios y permisos médicos reportados por los supervisores con su fotografía de respaldo.
+              </div>
+            </div>
+            <a href="../../modulo-supervision/views/supervision.html" class="btn btn-sm btn-dark fw-bold">
+              👷 Ir a Módulo Supervisión
+            </a>
+          </div>
+        </div>
+
+        <div class="card-modulo p-3">
+          <div class="fw-bold text-dark small mb-2">BITÁCORA DE MOVIMIENTOS OPERATIVOS Y EVIDENCIAS FOTOGRÁFICAS DEL MES:</div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>FECHA</th>
+                  <th>CONTRATO</th>
+                  <th>MOVIMIENTO REPORTADO</th>
+                  <th>AUXILIAR TITULAR</th>
+                  <th>AUXILIAR QUE CUBRE / DOBLA (VERDE)</th>
+                  <th>DETALLE DE SUPERVISIÓN</th>
+                  <th>SUPERVISOR</th>
+                  <th>EVIDENCIA ADJUNTA</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyNovedades"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL PARA ASIGNAR O MOVER TURNO AL HACER CLIC EN UN DÍA DEL CALENDARIO -->
+  <div class="modal fade" id="modalCeldaCalendario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-dark text-white py-2">
+          <h6 class="modal-title fw-bold">📅 Asignar / Mover Turno en el Calendario</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="formModalCeldaTurno">
+          <div class="modal-body">
+            <input type="hidden" id="modCalUsuarioId">
+            <input type="hidden" id="modCalContratoId">
+            <input type="hidden" id="modCalFechaISO">
+
+            <div class="p-2 mb-3 rounded bg-light border small">
+              <div><strong>Auxiliar:</strong> <span class="text-primary fw-bold" id="modCalNombreAuxiliar">-</span></div>
+              <div><strong>Fecha seleccionada:</strong> <span class="fw-bold" id="modCalFechaTexto">-</span></div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-primary">1. Seleccione el Turno Habilitado en este Contrato *</label>
+              <select class="form-select fw-bold border-primary" id="modCalSelectTurno" required></select>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small fw-bold text-dark">2. ¿Cómo desea aplicar este turno? *</label>
+              <div class="form-check p-2 border rounded mb-2 bg-light">
+                <input class="form-check-input ms-1" type="radio" name="modCalAlcance" id="radSoloDia" value="UN_DIA" checked>
+                <label class="form-check-label small fw-bold ms-2" for="radSoloDia">
+                  Aplicar solo a este día seleccionado
+                </label>
+              </div>
+              <div class="form-check p-2 border rounded mb-2 bg-light">
+                <input class="form-check-input ms-1" type="radio" name="modCalAlcance" id="radSemanaLunVie" value="SEMANA_LUN_VIE">
+                <label class="form-check-label small fw-bold text-primary ms-2" for="radSemanaLunVie">
+                  ✓ Cargar este mismo turno a toda la semana (Lunes a Viernes - 5 días)
+                </label>
+              </div>
+               
+              <div class="form-check p-2 border rounded bg-light">
+                <input class="form-check-input ms-1" type="radio" name="modCalAlcance" id="radQuincena" value="QUINCENA">
+                <label class="form-check-label small fw-bold text-success ms-2" for="radQuincena">
+                  ✓ Cargar a toda la quincena (15 días Lunes a Viernes)
+                </label>
+              </div>
+              <!-- CHECK DE HORA DE ALMUERZO -->
+        <div class="form-check form-switch mb-3 mt-2">
+          <input class="form-check-input border-primary shadow-sm" type="checkbox" id="chkDescuentaAlmuerzo" checked>
+          <label class="form-check-label fw-bold small text-secondary" for="chkDescuentaAlmuerzo">
+            🍽️ Descontar 1 hora de almuerzo (No remunerada)
+          </label>
+        </div>
+            </div>
+          </div>
+          <div class="modal-footer py-1">
+            <button type="button" class="btn btn-sm btn-outline-danger me-auto" id="btnBorrarTurnoDia">🗑️ Quitar Turno</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-sm btn-primary fw-bold px-3">💾 Guardar en Calendario</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="../js/asistencia.ctrl.js"></script>
+</body>
+</html>

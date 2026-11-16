@@ -1,0 +1,195 @@
+/* =====================================================================
+   ARCHIVO: modulo-trazabilidad/css/print-a4-horizontal.css
+   Exclusivo para exportación PDF A4 Landscape de Auditoría (CL-OP-0030)
+   ===================================================================== */
+
+@media print {
+  @page {
+    size: A4 landscape !important;
+    margin: 5mm 5mm 5mm 5mm !important;
+  }
+
+  *, *:before, *:after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-sizing: border-box !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #000000 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 6px !important;
+    border-bottom: 2px solid #0f172a !important;
+    padding-bottom: 5px !important;
+  }
+
+  .print-top-bar {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 3px !important;
+  }
+
+  .print-top-bar div:first-child {
+    font-weight: 900 !important;
+    font-size: 15px !important;
+    color: #0f172a !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  .print-header h4 {
+    margin: 0 !important;
+    font-size: 18px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.4px !important;
+    text-transform: uppercase !important;
+    color: #0f172a !important;
+  }
+
+  .print-code {
+    font-size: 13px !important;
+    font-weight: 900 !important;
+    border: 1.5px solid #0f172a !important;
+    padding: 2px 8px !important;
+    border-radius: 4px !important;
+    color: #0f172a !important;
+  }
+
+  .print-contrato {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    color: #1e293b !important;
+    margin-top: 2px !important;
+    margin-bottom: 4px !important;
+    text-transform: uppercase !important;
+  }
+
+  .print-meta-grid {
+    display: flex !important;
+    justify-content: space-between !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    margin-top: 3px !important;
+    color: #1e293b !important;
+  }
+
+  .table-container, .table-responsive {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* AJUSTE CRÍTICO: Anula el nowrap de pantalla para que entren las 20 columnas */
+  table,
+  table.table-auditoria,
+  .table-custom {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 0 auto !important;
+    table-layout: auto !important;
+  }
+
+  table th,
+  table.table-auditoria th,
+  .table-custom th {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    border: 1px solid #0f172a !important;
+    font-size: 7.5px !important;
+    padding: 3px 1.5px !important;
+    line-height: 1.1 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    font-weight: 800 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  table td,
+  table.table-auditoria td,
+  .table-custom td {
+    border: 1px solid #475569 !important;
+    font-size: 8px !important;
+    padding: 3px 2px !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    font-weight: 600 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  td small.fst-italic {
+    display: block !important;
+    font-size: 6.5px !important;
+  }
+
+  .badge-si, .badge-no {
+    font-size: 9.5px !important;
+    font-weight: 900 !important;
+    width: 14px !important;
+    height: 14px !important;
+    line-height: 14px !important;
+    display: inline-block !important;
+    border-radius: 50% !important;
+  }
+
+  .badge-si {
+    background-color: #dcfce7 !important;
+    color: #166534 !important;
+  }
+
+  .badge-no {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+  }
+
+  .print-firmas {
+    margin-top: 45px !important;
+    margin-bottom: 10px !important;
+    display: flex !important;
+    justify-content: space-around !important;
+    page-break-inside: avoid !important;
+    padding: 0 40px !important;
+  }
+
+  .print-firma-box {
+    width: 280px !important;
+    text-align: center !important;
+  }
+
+  .print-firma-box strong {
+    font-size: 10.5px !important;
+    display: block !important;
+    margin-top: 6px !important;
+    letter-spacing: 0.4px !important;
+  }
+
+  .print-firma-box span {
+    font-size: 9.5px !important;
+    display: block !important;
+    margin-top: 2px !important;
+  }
+
+  .print-firma-linea {
+    border-top: 1.5px solid #0f172a !important;
+    margin-bottom: 5px !important;
+  }
+}

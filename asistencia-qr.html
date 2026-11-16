@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Terminal Biométrica Timestamp QR - Brilla Limpieza Ecuador</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="./modulo-trazabilidad/css/estilos-pantalla.css">
+</head>
+<body class="bg-panel-login">
+  <div class="main-card" style="max-width: 460px;">
+    <!-- CABECERA TIPO INDEX -->
+    <div class="header-accent">
+      <div style="font-size: 1.15rem; font-weight: 900; letter-spacing: 0.8px;">
+        TERMINAL DE ASISTENCIA QR
+      </div>
+      <div class="small mt-1" style="opacity: 0.92; font-weight: 600;" id="lblPuntoDetectado">
+        Cámara Timestamp y Validación de Geocerca GPS
+      </div>
+    </div>
+
+    <div class="p-3">
+      <!-- VISOR DE CÁMARA EN VIVO CON ESTAMPA EN TIEMPO REAL -->
+      <div class="position-relative bg-dark rounded-3 overflow-hidden shadow-sm mb-3" style="min-height: 270px; border: 2px solid #0f172a;">
+        <video id="videoTimestamp" autoplay playsinline muted style="width: 100%; height: 290px; object-fit: cover;"></video>
+        <div class="position-absolute bottom-0 start-0 w-100 p-2 text-white" style="background: rgba(15, 23, 42, 0.82); font-size: 0.72rem; line-height: 1.35;">
+          <div class="fw-bold text-info" id="lblRelojTimestamp">--/--/---- --:--:--</div>
+          <div class="fw-semibold text-warning" id="lblUbicacionNombre">📍 Detectando contrato / servicio...</div>
+          <div id="lblEstadoGeocerca">📡 Verificando señal GPS del dispositivo...</div>
+        </div>
+      </div>
+
+     <!-- FORMULARIO DE TIMBRADO POR PIN DEL AUXILIAR -->
+      <form id="formTerminalAsistencia" autocomplete="off">
+        <div class="mb-2" id="cajaSelectorManualContrato" style="display: none;">
+          <label class="form-label small fw-bold text-primary m-0">Punto Operativo / Contrato *</label>
+          <select class="form-select form-select-sm fw-bold border-primary" id="selPuntoOperativo"></select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-muted m-0">1. Ingrese su Código PIN Personal *</label>
+          <div class="input-group">
+            <input
+              type="text"
+              inputmode="numeric"
+              class="form-control text-center fw-bold pin-oculto"
+              id="txtPinAuxiliar"
+              placeholder="••••"
+              required
+              autofocus>
+            <button type="button" class="btn btn-dark fw-bold" id="btnValidarPin">
+              🔍 Validar PIN
+            </button>
+          </div>
+        </div>
+
+        <div id="cajaBotonesEvento" style="display: none;">
+          <label class="form-label small fw-bold text-muted m-0 mb-1">2. Evento Detectado para: <span id="lblNombreAuxValidado" class="text-primary"></span></label>
+          
+          <div class="row g-2 mb-3">
+            <div class="col-12" id="cajaBtnEntrada" style="display: none;">
+              <input type="radio" class="btn-check" name="radEvento" id="evEntrada" value="ENTRADA">
+              <label class="btn btn-outline-success w-100 fw-bold py-2 fs-5" for="evEntrada">🟢 REGISTRAR ENTRADA</label>
+            </div>
+            <div class="col-12" id="cajaBtnSalida" style="display: none;">
+              <input type="radio" class="btn-check" name="radEvento" id="evSalida" value="SALIDA">
+              <label class="btn btn-outline-danger w-100 fw-bold py-2 fs-5" for="evSalida">🔴 REGISTRAR SALIDA</label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm fs-6" id="btnRegistrarTimestamp">
+            📸 CAPTURAR TIMESTAMP Y GUARDAR
+          </button>
+        </div>
+      </form>
+      
+      <!-- COMPROBANTE VISUAL DE LA FOTO ESTAMPADA -->
+      <div id="cajaComprobanteTimestamp" class="mt-3 p-2 border rounded bg-light text-center" style="display: none;">
+        <div class="alert alert-success py-2 px-2 mb-2 small fw-bold" id="lblMensajeExito"></div>
+        <img id="imgFotoEstampada" src="" alt="Comprobante Timestamp" class="img-fluid rounded border shadow-sm">
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="./core/asistencia-qr.ctrl.js"></script>
+</body>
+</html>

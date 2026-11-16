@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sistema Integral de Trazabilidad y Auditoría - Cleanings ERP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/estilos-pantalla.css">
+  <link rel="stylesheet" href="../css/print-a4-horizontal.css">
+</head>
+<body class="p-3">
+  <!-- MEMBRETE DE IMPRESIÓN (SOLO PDF A4 HORIZONTAL) -->
+  <div class="print-header">
+    <div class="print-top-bar">
+      <div style="font-weight: 800; font-size: 0.9rem; color: #0f172a;">CLEANINGS LIMPIEZA</div>
+      <h4>REGISTRO DE CONTROL DE LIMPIEZA Y DESINFECCIÓN</h4>
+      <div class="print-code">CÓDIGO: CL-OP-0030</div>
+    </div>
+    <div class="print-contrato" id="printContratoTitulo">PROYECTO: HOSPITAL DEL HOLDING</div>
+    <div class="print-meta-grid">
+      <span><strong>PISO / SEDE:</strong> <span id="printPiso">-</span></span>
+      <span><strong>ÁREA:</strong> <span id="printArea">-</span></span>
+      <span><strong>MES:</strong> <span id="printMes">-</span></span>
+      <span><strong>FECHA IMPRESIÓN:</strong> <span id="printFechaActual">-</span></span>
+    </div>
+  </div>
+
+  <!-- ENCABEZADO EN PANTALLA -->
+  <div class="card p-3 mb-3 border-0 shadow-sm bg-white no-print">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <div class="d-flex align-items-center gap-2">
+          <h5 class="fw-bold m-0 text-dark">SISTEMA INTEGRAL DE TRAZABILIDAD Y AUDITORÍA DE LIMPIEZA</h5>
+          <span class="badge bg-secondary" style="font-size: 0.75rem;">CL-OP-0030</span>
+        </div>
+        <span class="text-muted small" id="lblSubtituloAuditoria">Control de Calidad, Desinfección y Bioseguridad Hospitalaria</span>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm fw-bold px-3 shadow-sm" id="btnVolverMenu">
+          ← Menú
+        </button>
+        <button class="btn btn-dark btn-sm fw-bold px-3 shadow-sm" id="btnImprimirPDF">
+          Exportar / Imprimir PDF
+        </button>
+        <button class="btn btn-success btn-sm fw-bold px-3 shadow-sm no-print" id="btnFirmarAuditoria" style="display: none;">
+          🖋️ Firmar Auditoría
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL DE FILTROS MULTI-CONTRATO -->
+  <div class="card p-3 mb-3 border-0 shadow-sm bg-white no-print">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label fw-bold small text-primary">0. Contrato / Cliente *</label>
+        <select class="form-select form-select-sm border-primary fw-bold" id="filtroContrato">
+          <option value="">Cargando contratos...</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label fw-bold small text-primary">1. Piso / Sede *</label>
+        <select class="form-select form-select-sm border-primary" id="filtroPiso">
+          <option value="">Seleccione piso...</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold small text-primary">2. Selecciona Área *</label>
+        <select class="form-select form-select-sm border-primary" id="filtroArea" disabled>
+          <option value="">Primero seleccione el piso...</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label fw-bold small text-secondary">3. Mes (Opcional)</label>
+        <select class="form-select form-select-sm" id="filtroDesde">
+          <option value="">Todos los meses</option>
+          <option value="01">Enero</option>
+          <option value="02">Febrero</option>
+          <option value="03">Marzo</option>
+          <option value="04">Abril</option>
+          <option value="05">Mayo</option>
+          <option value="06">Junio</option>
+          <option value="07">Julio</option>
+          <option value="08">Agosto</option>
+          <option value="09">Septiembre</option>
+          <option value="10">Octubre</option>
+          <option value="11">Noviembre</option>
+          <option value="12">Diciembre</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-primary btn-sm fw-bold w-100" id="btnFiltrar" disabled>
+          Consultar
+        </button>
+        <button class="btn btn-light btn-sm w-50 border" id="btnLimpiar">
+          Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA PRINCIPAL DE AUDITORÍA (LIMPIEZAS) -->
+  <div class="table-container p-2">
+    <div class="d-flex justify-content-between align-items-center mb-2 px-1 no-print">
+      <div>
+        <span class="fw-bold text-dark" id="tituloTabla">REGISTROS DE AUDITORÍA</span>
+        <span id="badgeModeloDetectado" class="badge-modelo-info bg-secondary text-white ms-2" style="display: none;">-</span>
+      </div>
+      <span class="badge bg-light text-dark border" id="contadorRegistros">0 registros</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm m-0 table-auditoria">
+        <thead id="tablaCabecera"></thead>
+        <tbody id="tablaCuerpo">
+          <tr>
+            <td class="text-center py-5 text-muted">
+              <strong>Selecciona un Piso y un Área</strong> en los filtros superiores para desplegar el cuadro de registros.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SUB-PANEL: CONTROL MICROBIOLÓGICO Y LUMINOMETRÍA ATP -->
+    <div class="table-container p-2 mt-3 no-print" id="panelLuminometriaAuditoria">
+      <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+        <div>
+          <span class="fw-bold text-dark">CONTROL MICROBIOLÓGICO Y LUMINOMETRÍA ATP (HISOPADOS)</span>
+          <span class="badge bg-primary text-white ms-2">CL-OP-0031</span>
+        </div>
+        <span class="badge bg-light text-dark border" id="contadorLuminometria">0 hisopados</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover table-sm m-0 table-auditoria">
+          <thead>
+            <tr>
+              <th>FECHA</th>
+              <th>HORA</th>
+              <th>PUNTO CRÍTICO MUESTREADO</th>
+              <th>LECTURA RLU MEDIDA</th>
+              <th>LÍMITE ACEPTABLE</th>
+              <th>ESTADO DE LIMPIEZA ATP</th>
+              <th>AUDITOR RESPONSABLE</th>
+              <th>AUXILIAR VINCULADO</th>
+              <th>RESPONSABLE CLIENTE</th>
+              <th>OBSERVACIONES / ACCIÓN CORRECTIVA</th>
+              <th class="text-center">EVIDENCIA</th>
+            </tr>
+          </thead>
+          <tbody id="tablaCuerpoLuminometria">
+            <tr>
+              <td colspan="11" class="text-center py-4 text-muted small">
+                Selecciona un Piso y un Área para consultar los registros de hisopados.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FIRMAS EN PDF -->
+    <div class="print-firmas d-none d-print-flex">
+      <div class="print-firma-box">
+        <div class="print-firma-linea"></div>
+        <strong style="font-size: 0.65rem;">COORDINACIÓN DE OPERACIONES Y SST</strong><br>
+        <span style="font-size: 0.55rem; color: #475569;">CLEANINGS ECUADOR</span>
+      </div>
+      <div class="print-firma-box">
+        <div class="print-firma-linea"></div>
+        <strong style="font-size: 0.65rem;">CONTROL DE CALIDAD</strong><br>
+        <span style="font-size: 0.55rem; color: #475569;" id="printFirmaCliente">HOSPITAL DEL HOLDING</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PARA VER FOTO DE HISOPADO -->
+  <div class="modal fade" id="modalVisorFoto" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow border-0" style="border-radius: 12px; overflow: hidden;">
+        <div class="modal-header bg-dark text-white py-2">
+          <h6 class="modal-title fw-bold" id="modalFotoTitulo">Evidencia Fotográfica ATP</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center p-3 bg-light">
+          <img id="imgModalFoto" src="" alt="Cargando evidencia..." class="img-fluid rounded border shadow-sm" style="max-height: 400px; width: auto; object-fit: contain;">
+          <div class="mt-2 text-muted small fw-semibold" id="modalFotoSubtitulo"></div>
+        </div>
+        <div class="modal-footer py-1 justify-content-between">
+          <a id="linkFotoOriginal" href="#" target="_blank" class="btn btn-sm btn-outline-secondary">Abrir Original ↗</a>
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="../js/auditoria.ctrl.js"></script>
+</body>
+</html>

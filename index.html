@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ERP DE CONTROL OPERATIVO - Cleanings Ecuador</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="./modulo-trazabilidad/css/estilos-pantalla.css">
+</head>
+<body class="bg-panel-login">
+  <div class="main-card" id="contenedorTarjetaERP">
+    <!-- ENCABEZADO GLOBAL DEL ERP -->
+    <div class="header-accent">
+      <div style="font-size: 1.2rem; font-weight: 900; letter-spacing: 0.8px; line-height: 1.3;" id="lblTituloCabecera">
+        ERP DE CONTROL OPERATIVO
+      </div>
+      <div class="small mt-1" style="opacity: 0.92; font-weight: 600;" id="lblContratoCabecera">
+        Gestión Integral de Operaciones, Calidad, Logística y SST
+      </div>
+    </div>
+
+    <div class="p-3 p-md-4">
+      <!-- LOGO INSTITUCIONAL -->
+      <div class="text-center mb-3" id="bloqueLogoERP">
+        <div style="min-height: 60px; display: flex; align-items: center; justify-content: center;">
+          <img 
+            src="https://drive.google.com/thumbnail?id=14SqUGvm7kp9-WbKZI85KwjSr-JCUUoXO&sz=w500" 
+            alt="Sello Institucional Cleanings Ecuador" 
+            style="max-height: 58px; max-width: 100%; object-fit: contain;">
+        </div>
+        <div class="fw-bold text-dark mt-1" style="font-size: 0.9rem; letter-spacing: 1px;">
+          EMPRESA CLEANINGS ECUADOR
+        </div>
+      </div>
+
+      <!-- AVISO DE UBICACIÓN CUANDO VIENE POR ESCANEO DE QR -->
+      <div id="cajaQrDetectado" class="badge-qr-info text-center" style="display: none;">
+        <span class="text-muted">Ubicación Escaneada por QR:</span><br>
+        <strong class="text-primary" id="lblAreaQR">-</strong>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- VISTA 1: LOGIN CENTRAL POR PIN (COMPACTO)                 -->
+      <!-- ========================================================= -->
+      <div id="seccionLogin">
+        <p class="text-center text-muted small mb-3">
+          Ingrese su código PIN asignado para acceder al sistema según su nivel de autorización:
+        </p>
+        <form id="formAcceso" autocomplete="off">
+          <div class="mb-3">
+            <input 
+              type="text" 
+              inputmode="numeric"
+              class="form-control text-center fw-bold pin-oculto" 
+              id="txtCodigo" 
+              placeholder="••••" 
+              required 
+              autofocus>
+            <div id="msgError" class="text-danger small text-center fw-bold mt-2" style="display: none; white-space: pre-line;"></div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" id="btnIngresar">
+            🔐 Validar Acceso al ERP
+          </button>
+        </form>
+      </div>
+
+      <!-- BARRA SUPERIOR DE USUARIO ACTIVO -->
+      <div id="barraSesionActiva" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-2 border-bottom">
+          <div>
+            <span class="small text-muted">Usuario conectado:</span>
+            <strong class="text-primary ms-1" id="lblUsuario">-</strong>
+            <span class="badge bg-dark ms-1" id="lblRol">-</span>
+          </div>
+          <button type="button" class="btn btn-outline-danger btn-sm fw-bold px-3" id="btnSalir">
+            Cerrar Sesión ✖
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- VISTA 2: VENTANA CENTRAL DEL ERP (AMPLIA Y RESPONSIVA)    -->
+      <!-- ========================================================= -->
+      <div id="seccionHubERP" style="display: none;">
+        <div class="text-muted small fw-bold mb-3">SELECCIONE EL MÓDULO DEL SISTEMA CENTRAL:</div>
+
+        <div class="row g-3">
+          <!-- 1. CONTROL DE CONTRATOS -->
+          <div class="col-12 col-md-6">
+            <div class="module-card h-100 m-0" id="btnAbrirModuloContratos" style="border-color: #0f172a; background: #f8fafc;">
+              <div class="icon-box" style="background: #0f172a; color: #ffffff;">🏢</div>
+              <div>
+                <div class="fw-bold text-dark">CONTROL DE CONTRATOS</div>
+                <div class="text-muted small">Ver y modificar contratos (50+), pisos/áreas y asignar PIN/Rol a encargados</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. CONTROL DE ASISTENCIA Y NÓMINA -->
+          <div class="col-12 col-md-6">
+            <div class="module-card h-100 m-0" data-modulo-erp="asistencia">
+              <div class="icon-box" style="background: #dbeafe; color: #1d4ed8;">🕒</div>
+              <div>
+                <div class="fw-bold text-dark">CONTROL DE ASISTENCIA Y NÓMINA</div>
+                <div class="text-muted small">Creación de usuarios, marcaciones GPS, turnos y liquidación de horas</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. CONTROL DE LOGÍSTICA -->
+          <div class="col-12 col-md-6">
+            <div class="module-card h-100 m-0" data-modulo-erp="logistica">
+              <div class="icon-box" style="background: #ffedd5; color: #c2410c;">🚚</div>
+              <div>
+                <div class="fw-bold text-dark">CONTROL DE LOGÍSTICA</div>
+                <div class="text-muted small">Despacho de insumos, rutas, entregas y equipamiento</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. CONTROL DE INVENTARIOS -->
+          <div class="col-12 col-md-6">
+            <div class="module-card h-100 m-0" data-modulo-erp="inventarios">
+              <div class="icon-box" style="background: #f3e8ff; color: #7e22ce;">📦</div>
+              <div>
+                <div class="fw-bold text-dark">CONTROL DE INVENTARIOS</div>
+                <div class="text-muted small">Stock de bodega, maquinaria, químicos y activos por contrato</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. CONTROL OPERATIVO DE SUPERVISIÓN -->
+          <div class="col-12 col-md-6">
+            <div class="module-card h-100 m-0" data-modulo-erp="supervision">
+              <div class="icon-box" style="background: #fce7f3; color: #be185d;">👷</div>
+              <div>
+                <div class="fw-bold text-dark">CONTROL OPERATIVO DE SUPERVISIÓN</div>
+                <div class="text-muted small">Rondas operativas, novedades y control de campo</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. CONTROL DE REGISTRO Y TRAZABILIDAD DE LIMPIEZA -->
+          <div class="col-12 col-md-6">
+            <div class="module-card h-100 m-0" id="btnAbrirModuloTrazabilidad" style="border-color: #0284c7; background: #f0f9ff;">
+              <div class="icon-box" style="background: #0284c7; color: #ffffff;">🧹</div>
+              <div>
+                <div class="fw-bold text-primary">CONTROL DE REGISTRO Y TRAZABILIDAD DE LIMPIEZA</div>
+                <div class="text-muted small">Checklists QR, Auditoría A4, Luminometría ATP y KPIs (CL-OP-0030)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTÓN MAESTRO DE BORRADO DE BASE DE DATOS (SOLO CONTROL) -->
+        <div id="cajaHerramientasRoot" class="mt-4 pt-3 border-top text-center" style="display: none;">
+          <button type="button" class="btn btn-sm btn-outline-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalLimpiezaBD">
+            ⚠️ HERRAMIENTA ROOT: VACIAR / REINICIAR BASES DE DATOS
+          </button>
+        </div>
+      </div> <!-- Fin seccionHubERP -->
+
+      <!-- MODAL: LIMPIEZA MAESTRA DE BASE DE DATOS -->
+      <div class="modal fade" id="modalLimpiezaBD" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content border-danger shadow-lg">
+            <div class="modal-header bg-danger text-white py-2">
+              <h6 class="modal-title fw-bold">⚠️ VACIADO Y REINICIO DE BASES DE DATOS</h6>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+              <p class="small text-muted fw-bold mb-3 text-center">
+                Seleccione el módulo o tablas que desea formatear. Esta acción eliminará permanentemente la información seleccionada de los servidores de Supabase.
+              </p>
+              
+              <div class="d-grid gap-2">
+                <button type="button" class="btn btn-warning fw-bold btnLimpiarBD" data-target="asistencia">
+                  1. Borrar SÓLO Registros de Asistencia y Timbrados (QR)
+                </button>
+                <button type="button" class="btn btn-warning fw-bold btnLimpiarBD" data-target="nomina">
+                  2. Borrar Horas Adicionales, Bonos y Novedades (Nómina)
+                </button>
+                <button type="button" class="btn btn-warning fw-bold btnLimpiarBD" data-target="calendario">
+                  3. Borrar Cronogramas y Calendarios de Turnos
+                </button>
+                <button type="button" class="btn btn-warning fw-bold btnLimpiarBD" data-target="trazabilidad">
+                  4. Borrar Registros de Limpieza, Auditorías A4 y ATP
+                </button>
+                <hr class="my-1 border-danger">
+                <button type="button" class="btn btn-danger fw-bold btnLimpiarBD" data-target="usuarios">
+                  ⛔ 5. Eliminar TODO el Personal y Usuarios (Excepto Rol CONTROL)
+                </button>
+                <button type="button" class="btn btn-dark fw-bold btnLimpiarBD" data-target="todo">
+                  💀 6. FORMATEO TOTAL DE FÁBRICA (Borrar ABSOLUTAMENTE TODO, Contratos y Áreas)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- ========================================================= -->
+      <!-- VISTA 3: MÓDULO CONTROL DE CONTRATOS (AMPLIO Y COMPLETO)  -->
+      <!-- ========================================================= -->
+      <div id="seccionControlContratos" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <button type="button" class="btn btn-outline-dark btn-sm fw-bold px-3 shadow-sm" id="btnVolverDesdeContratos">
+            ← Volver al Menú Principal del ERP
+          </button>
+          <span class="badge bg-dark px-3 py-2" id="badgeTotalContratosAdmin">0 Contratos Activos</span>
+        </div>
+
+        <!-- Selector Maestro del Contrato -->
+        <div class="p-3 mb-3 rounded border bg-light shadow-sm">
+          <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+              <label class="form-label small fw-bold text-dark m-0">
+                🏢 Seleccione el Contrato a Consultar o Configurar:
+              </label>
+              <div class="text-muted" style="font-size: 0.72rem;">
+                Al cambiar de contrato se actualizan sus Pisos/Áreas y la lista de Usuarios asignados.
+              </div>
+            </div>
+            <div class="col-12 col-md-7">
+              <select class="form-select fw-bold border-dark" id="admSelContratoMaestro">
+                <option value="">Cargando contratos...</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- PESTAÑAS DE GESTIÓN -->
+        <ul class="nav nav-pills nav-fill gap-2 mb-3 p-1 bg-light rounded border" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active fw-bold small py-2" data-bs-toggle="tab" data-bs-target="#tabAdmContratos">
+              🏢 1. Ver / Crear / Modificar Contratos
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link fw-bold small py-2" data-bs-toggle="tab" data-bs-target="#tabAdmAreas">
+              📍 2. Pisos y Áreas del Contrato
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link fw-bold small py-2" data-bs-toggle="tab" data-bs-target="#tabAdmEncargados">
+              🔐 3. Usuarios del Contrato (Asignar Rol y PIN)
+            </button>
+          </li>
+        </ul>
+
+        <div id="admMensajeFeedback" class="alert alert-success py-2 px-3 mb-3 small fw-bold text-center shadow-sm" style="display: none;"></div>
+
+        <div class="tab-content">
+         <!-- ===================================================== -->
+          <!-- PESTAÑA 1: CONTRATOS (GPS, REPRESENTANTE, T1-T4 + BH) -->
+          <!-- ===================================================== -->
+          <div class="tab-pane fade show active" id="tabAdmContratos">
+            <div class="p-3 border rounded bg-white mb-3 shadow-sm">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-primary small" id="lblTituloFormContrato">
+                  ➕ REGISTRAR / CONFIGURAR CONTRATO (GEOCERCA GPS, REPRESENTANTE Y TURNOS T1-T4)
+                </span>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="btnCancelarEdicionContrato" style="display: none;">
+                  Cancelar Edición ✖
+                </button>
+              </div>
+
+              <form id="formNuevoContrato" class="row g-2 align-items-end">
+                <input type="hidden" id="editContratoId" value="">
+
+                <!-- FILA 1: DATOS DEL CONTRATO Y GEOCERCA GPS -->
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">Código Único *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="admCodContrato" placeholder="CL-SIME-02" required>
+                </div>
+                <div class="col-6 col-md-4">
+                  <label class="form-label small fw-bold m-0">Nombre del Cliente / Sede *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase" id="admNomContrato" placeholder="CLÍNICA SIME CUMBAYÁ" required>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">Ciudad *</label>
+                  <input type="text" class="form-control form-control-sm" id="admCiudadContrato" value="Quito" required>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">Latitud GPS *</label>
+                  <input type="number" step="0.0000001" class="form-control form-control-sm fw-bold" id="admLatitudContrato" value="-0.1806530" required>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">Longitud GPS *</label>
+                  <input type="number" step="0.0000001" class="form-control form-control-sm fw-bold" id="admLongitudContrato" value="-78.4678340" required>
+                </div>
+
+                <!-- FILA 2: REPRESENTANTE DEL CLIENTE -->
+                <div class="col-12 mt-2">
+                  <div class="small fw-bold text-secondary border-bottom pb-1">
+                    👤 REPRESENTANTE DEL CONTRATO (PARA INFORMES AUTOMÁTICOS) Y RADIO GPS:
+                  </div>
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label small fw-bold m-0">Representante del Cliente *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase" id="admRepNombre" placeholder="LIC. MARCELO BENÍTEZ" required>
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small fw-bold m-0">Cargo *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase" id="admRepCargo" placeholder="ADMINISTRADOR" required>
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small fw-bold m-0">Correo Electrónico *</label>
+                  <input type="email" class="form-control form-control-sm" id="admRepCorreo" placeholder="correo@cliente.com" required>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">Teléfono *</label>
+                  <input type="text" class="form-control form-control-sm" id="admRepTelefono" placeholder="0990000000" required>
+                </div>
+                <div class="col-6 col-md-1">
+                  <label class="form-label small fw-bold m-0">Radio (m)</label>
+                  <input type="number" class="form-control form-control-sm fw-bold text-center" id="admRadioContrato" value="150" required>
+                </div>
+
+                <!-- FILA 3: 4 TURNOS FIJOS + CHECK DE TURNO ESPECIAL (BANCO DE HORAS) -->
+                <div class="col-12 mt-2">
+                  <div class="small fw-bold text-secondary border-bottom pb-1">
+                    🕒 HORARIOS DEL CONTRATO (T1, T2, T3, T4) Y TURNO ESPECIAL (BANCO DE HORAS):
+                  </div>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold text-primary m-0">Turno 1 (T1) *</label>
+                  <input type="text" class="form-control form-control-sm fw-bold" id="admTurno1" value="07:00 - 15:30" >
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold text-primary m-0">Turno 2 (T2)</label>
+                  <input type="text" class="form-control form-control-sm fw-bold" id="admTurno2" value="13:00 - 21:00" placeholder="Opcional">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold text-primary m-0">Turno 3 (T3)</label>
+                  <input type="text" class="form-control form-control-sm fw-bold" id="admTurno3" value="21:00 - 07:00" placeholder="Opcional">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold text-primary m-0">Turno 4 (T4)</label>
+                  <input type="text" class="form-control form-control-sm fw-bold" id="admTurno4" value="" placeholder="Ej: 08:00 - 17:00">
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="form-check p-2 border rounded bg-light">
+                    <input class="form-check-input ms-1" type="checkbox" id="admCheckTurnoEspecial">
+                    <label class="form-check-label small fw-bold text-dark ms-2" for="admCheckTurnoEspecial">
+                      Habilitar Turno Especial (Sin horario fijo / Banco de Horas según asistencia)
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-4 mt-2">
+                  <button type="button" class="btn btn-sm btn-outline-dark w-100 fw-bold" id="btnCapturarMiGPSContrato">
+                    📡 Capturar mi GPS actual
+                  </button>
+                </div>
+                <div class="col-12 col-md-8 mt-2">
+                  <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-2" id="btnGuardarContrato">
+                    💾 Guardar Contrato con Geocerca, Representante y Turnos
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Tabla de todos los contratos creados -->
+            <div class="border rounded bg-white p-2 shadow-sm">
+              <div class="fw-bold text-dark small mb-2 px-1">LISTADO DE CONTRATOS CONFIGURADOS EN EL ERP:</div>
+              <div class="table-responsive" style="max-height: 340px;">
+                <table class="table table-sm table-bordered table-hover align-middle m-0">
+                  <thead class="table-dark text-center" style="font-size: 0.72rem;">
+                    <tr>
+                      <th>#</th>
+                      <th>CÓDIGO / SEDE</th>
+                      <th>REPRESENTANTE CLIENTE</th>
+                      <th>TURNOS HABILITADOS (T1 - T4 / ESPECIAL)</th>
+                      <th>GEOCERCA GPS</th>
+                      <th>QR ASISTENCIA PUNTO</th>
+                      <th style="width: 140px;">ACCIONES</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablaListaContratosAdm" style="font-size: 0.75rem;"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===================================================== -->
+          <!-- PESTAÑA 2: PISOS Y ÁREAS (CREAR, MODIFICAR, ELIMINAR) -->
+          <!-- ===================================================== -->
+          <div class="tab-pane fade" id="tabAdmAreas">
+            <div class="p-3 border rounded bg-white mb-3 shadow-sm">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-success small" id="lblTituloFormArea">➕ AGREGAR PISO / ÁREA AL CONTRATO SELECCIONADO</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="btnCancelarEdicionArea" style="display: none;">
+                  Cancelar Edición ✖
+                </button>
+              </div>
+              <form id="formNuevaArea" class="row g-2 align-items-end">
+                <input type="hidden" id="editAreaId" value="">
+                <div class="col-12 col-md-3">
+                  <label class="form-label small fw-bold m-0">Piso / Sector *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="admPisoArea" placeholder="Ej: PISO 3 o PB" required>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold m-0">Nombre del Área Física *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase" id="admNombreArea" placeholder="Ej: UCI ADULTO" required>
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label small fw-bold m-0">Modelo / Umbral ATP *</label>
+                  <select class="form-select form-select-sm fw-bold" id="admModeloArea">
+                    <option value="CRITICA">CRÍTICA (15 RLU)</option>
+                    <option value="SEMICRITICA">SEMICRÍTICA (45 RLU)</option>
+                    <option value="NOCRITICA">NO CRÍTICA (45 RLU)</option>
+                    <option value="BANOS">BAÑOS (45 RLU)</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-2">
+                  <button type="submit" class="btn btn-sm btn-success w-100 fw-bold" id="btnGuardarArea">
+                    + Guardar Área
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Tabla de pisos y áreas con Editar y Eliminar -->
+            <div class="border rounded bg-white p-2 shadow-sm">
+              <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <span class="fw-bold text-dark small" id="lblResumenAreasContrato">PISOS Y ÁREAS DEL CONTRATO:</span>
+              </div>
+              <div class="table-responsive" style="max-height: 320px;">
+                <table class="table table-sm table-bordered table-hover align-middle m-0">
+                  <thead class="table-dark text-center" style="font-size: 0.74rem;">
+                    <tr>
+                      <th style="width: 45px;">#</th>
+                      <th>PISO / SECTOR</th>
+                      <th>NOMBRE DEL ÁREA</th>
+                      <th>MODELO CHECKLIST</th>
+                      <th>LÍMITE RLU</th>
+                      <th style="width: 170px;">ACCIONES</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablaResumenAreasAdm" style="font-size: 0.78rem;"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===================================================== -->
+          <!-- PESTAÑA 3: ENCARGADOS / USUARIOS DEL CONTRATO         -->
+          <!-- ===================================================== -->
+          <div class="tab-pane fade" id="tabAdmEncargados">
+            <div class="p-3 border rounded bg-white mb-3 shadow-sm">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-dark small" id="lblTituloFormEncargado">
+                  🔐 ASIGNAR / MODIFICAR ROL Y PIN A USUARIO REGISTRADO EN ESTE CONTRATO
+                </span>
+              </div>
+              <p class="text-muted small mb-2" style="font-size: 0.74rem;">
+                Seleccione un trabajador previamente dado de alta y asignado a este contrato en el <strong>Módulo de Creación de Usuarios</strong> para definir su Nivel de Rol y su PIN de acceso.
+              </p>
+
+              <form id="formAsignarRolPin" class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold m-0">1. Usuario Registrado en el Contrato *</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="admSelUsuarioRegistrado" required>
+                    <option value="">Cargando usuarios del contrato...</option>
+                  </select>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">2. PIN Acceso *</label>
+                  <input type="text" class="form-control form-control-sm fw-bold text-center border-primary" id="admPinUsuario" placeholder="Ej: 2005" required>
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small fw-bold m-0">3. Nivel de Rol *</label>
+                  <select class="form-select form-select-sm fw-bold" id="admRolPermiso" required>
+                    <option value="SUPERVISOR">SUPERVISOR / AUDITOR</option>
+                    <option value="AUXILIAR">AUXILIAR OPERATIVO</option>
+                    <option value="CONTROL">CONTROL TOTAL ERP</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label small fw-bold m-0">4. Etiqueta / Cargo *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase" id="admEtiquetaUsuario" placeholder="Ej: AUDITOR SIME" required>
+                </div>
+                <div class="col-12 mt-2 text-end">
+                  <button type="submit" class="btn btn-sm btn-dark px-4 fw-bold" id="btnGuardarRolPin">
+                    💾 Guardar Rol y PIN del Usuario
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Lista de todos los usuarios asignados a este contrato -->
+            <div class="border rounded bg-white p-2 shadow-sm">
+              <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <span class="fw-bold text-dark small" id="lblTituloTablaUsuariosContrato">
+                  LISTA DE USUARIOS Y ENCARGADOS ASIGNADOS A ESTE CONTRATO:
+                </span>
+              </div>
+              <div class="table-responsive" style="max-height: 320px;">
+                <table class="table table-sm table-bordered table-hover align-middle m-0">
+                  <thead class="table-dark text-center" style="font-size: 0.74rem;">
+                    <tr>
+                      <th style="width: 45px;">#</th>
+                      <th>NOMBRE DEL TRABAJADOR / ENCARGADO</th>
+                      <th>CARGO / ETIQUETA</th>
+                      <th>NIVEL DE ROL</th>
+                      <th>PIN ACCESO</th>
+                      <th style="width: 190px;">ACCIONES</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablaResumenUsuariosAdm" style="font-size: 0.78rem;"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- VISTA 4: SUB-VENTANA DEL MÓDULO DE TRAZABILIDAD           -->
+      <!-- ========================================================= -->
+      <div id="seccionModulos" style="display: none;">
+        <div class="mb-3" id="cajaBtnVolverERP" style="display: none;">
+          <button type="button" class="btn btn-outline-primary btn-sm w-100 fw-bold shadow-sm" id="btnVolverAlHubERP">
+            ← Volver al Menú Principal del ERP de Control Operativo
+          </button>
+        </div>
+
+        <!-- SELECTOR DE CONTRATO -->
+        <div class="mb-3 p-3 rounded border bg-light shadow-sm" id="bloqueSelectorContrato">
+          <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+              <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label small fw-bold text-primary m-0">
+                  🏢 Contrato / Cliente Activo:
+                </label>
+                <span class="badge bg-primary" id="badgeCantContratos">0 contratos</span>
+              </div>
+              <small class="text-muted d-block" id="lblSupervisorAsignado" style="font-size: 0.72rem;">
+                Alcance de visualización: -
+              </small>
+            </div>
+            <div class="col-12 col-md-7">
+              <input type="text" class="form-control form-control-sm mb-1" id="txtBuscarContrato" placeholder="🔍 Filtrar rápido entre contratos (Ej: SIME, Holding...)" style="display: none;">
+              <select class="form-select form-select-sm fw-bold border-primary" id="selContratoActivo">
+                <option value="">Cargando contratos asignados...</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-muted small fw-bold mb-2">SUB-MÓDULOS DE TRAZABILIDAD Y BIOSEGURIDAD:</div>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-6" id="colModRegistro">
+            <div id="modRegistro" class="module-card h-100 m-0" data-destino="registro.html">
+              <div class="icon-box" style="background: #e0f2fe; color: #0284c7;">🧹</div>
+              <div>
+                <div class="fw-bold text-dark">Registro Diario de Limpieza</div>
+                <div class="text-muted small">Checklist de aseo y desinfección hospitalaria</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6" id="colModAuditoria">
+            <div id="modAuditoria" class="module-card h-100 m-0" data-destino="auditoria.html">
+              <div class="icon-box" style="background: #dcfce7; color: #16a34a;">📋</div>
+              <div>
+                <div class="fw-bold text-dark">Auditoría y Trazabilidad</div>
+                <div class="text-muted small">Control de firmas, registros y reporte A4 en PDF</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6" id="colModLuminometria">
+            <div id="modLuminometria" class="module-card h-100 m-0" data-destino="luminometria.html">
+              <div class="icon-box" style="background: #f3e8ff; color: #9333ea;">🧪</div>
+              <div>
+                <div class="fw-bold text-dark">Control Luminometría ATP</div>
+                <div class="text-muted small">Monitoreo microbiológico de superficies críticas</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6" id="colModReportes">
+            <div id="modReportes" class="module-card h-100 m-0" data-destino="reportes.html">
+              <div class="icon-box" style="background: #fef3c7; color: #d97706;">📊</div>
+              <div>
+                <div class="fw-bold text-dark">Informe Ejecutivo y KPIs</div>
+                <div class="text-muted small">Métricas, metas terminales, ATP y Rendimiento</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GENERADOR Y EXPORTACIÓN EXCEL DE QRs (Solo CONTROL) -->
+        <div id="seccionAdminControl" style="display: none;">
+          <div class="text-muted small fw-bold mt-3 mb-2">HERRAMIENTAS DE DESPLIEGUE QR:</div>
+          <div class="module-card m-0" data-bs-toggle="modal" data-bs-target="#modalGeneradorQR">
+            <div class="icon-box" style="background: #e2e8f0; color: #0f172a;">📱</div>
+            <div>
+              <div class="fw-bold text-dark">Generador y Exportación Masiva de QRs</div>
+              <div class="text-muted small">Descargar Excel con todos los QRs del contrato o imprimir plancha</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GENERADOR INDIVIDUAL Y EXPORTACIÓN MASIVA A EXCEL DE QRs -->
+  <div class="modal fade" id="modalGeneradorQR" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-dark text-white py-2">
+          <h6 class="modal-title fw-bold">📱 Códigos QR de Puerta del Contrato Activo</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="p-3 mb-3 rounded border bg-light text-center">
+            <div class="fw-bold text-dark small mb-1">EXPORTACIÓN MASIVA DEL CONTRATO SELECCIONADO</div>
+            <p class="text-muted small mb-2" style="font-size: 0.74rem;">
+              Genera de inmediato un archivo Excel (<strong>.xlsx</strong>) con todas las áreas registradas en este contrato, sus links directos, imagen QR y fórmula lista para imprenta.
+            </p>
+            <div class="d-grid gap-2">
+              <button type="button" class="btn btn-success btn-sm fw-bold shadow-sm" id="btnExportarExcelQRs">
+                📥 Descargar Excel con TODOS los QRs del Contrato
+              </button>
+              <button type="button" class="btn btn-outline-dark btn-sm fw-bold" id="btnImprimirCatalogoQRs">
+                🖨️ Vista Imprimible de Etiquetas QR (Todas las Áreas)
+              </button>
+            </div>
+          </div>
+
+          <hr class="my-2">
+          <div class="fw-bold text-secondary small mb-2">CONSULTA INDIVIDUAL POR ÁREA:</div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold m-0">1. Seleccione Piso:</label>
+            <select class="form-select form-select-sm" id="qrSelPiso"></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold m-0">2. Seleccione Área:</label>
+            <select class="form-select form-select-sm" id="qrSelArea"></select>
+          </div>
+          <div id="cajaResultadoQR" class="text-center p-3 border rounded bg-light" style="display: none;">
+            <div class="fw-bold text-dark mb-1" id="qrTituloCliente">-</div>
+            <div class="badge bg-primary mb-2" id="qrSubtituloArea">-</div><br>
+            <img id="imgCodigoQR" src="" alt="QR Puerta" class="img-fluid border rounded p-2 bg-white shadow-sm" style="max-width: 190px;">
+            <div class="mt-2">
+              <input type="text" class="form-control form-control-sm text-center small text-muted" id="txtUrlQR" readonly>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer py-1">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <button type="button" class="btn btn-sm btn-primary fw-bold" id="btnGenerarImagenQR">Ver QR Individual</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script type="module" src="./core/panel.ctrl.js"></script>
+</body>
+</html>

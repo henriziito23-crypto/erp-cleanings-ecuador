@@ -1,0 +1,335 @@
+/* =====================================================================
+   ARCHIVO: modulo-trazabilidad/css/estilos-pantalla.css
+   Estilos unificados de interfaz para Panel, Registro, Auditoría, ATP y KPIs
+   ===================================================================== */
+
+body {
+  background-color: #f1f5f9;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.85rem;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* --- ESTILOS DEL PANEL DE ACCESO (LOGIN Y MENÚ) --- */
+body.bg-panel-login {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.main-card {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  width: 100%;
+  max-width: 490px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-accent {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.pin-oculto {
+  -webkit-text-security: disc !important;
+  text-security: disc !important;
+  letter-spacing: 6px;
+  font-size: 1.5rem;
+}
+
+.module-card {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.module-card:hover {
+  background: #ffffff;
+  border-color: #0284c7;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(2, 132, 199, 0.15);
+  color: inherit;
+}
+
+.icon-box {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.badge-qr-info {
+  background: #f1f5f9;
+  border: 1px dashed #0284c7;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 15px;
+  font-size: 0.8rem;
+}
+
+/* --- ESTILOS DE REGISTRO DIARIO Y LUMINOMETRÍA ATP --- */
+.header-card {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+}
+
+.form-card, .card-custom {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  margin-bottom: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-modelo {
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+.check-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.check-item:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.check-item input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  accent-color: #0284c7;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.btn-submit {
+  background: #0284c7;
+  color: white;
+  font-weight: 700;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  width: 100%;
+  font-size: 1.05rem;
+  transition: background 0.2s ease;
+}
+
+.btn-submit:hover {
+  background: #0369a1;
+  color: white;
+}
+
+.campo-bloqueado {
+  background-color: #e2e8f0 !important;
+  cursor: not-allowed !important;
+  font-weight: 700 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* --- TARJETAS DE CONFIRMACIÓN EXITOSA (REGISTRO Y ATP) --- */
+.header-exito, .confirm-header {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #ffffff;
+  padding: 22px 20px;
+  text-align: center;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+}
+
+.confirm-body {
+  background: #ffffff;
+  padding: 24px;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+.caja-datos {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+.badge-aprobado { background-color: #dcfce7; color: #15803d; font-weight: bold; padding: 8px 12px; border-radius: 6px; }
+.badge-rechazado { background-color: #fee2e2; color: #b91c1c; font-weight: bold; padding: 8px 12px; border-radius: 6px; }
+.badge-alerta { background-color: #fef3c7; color: #b45309; font-weight: bold; padding: 8px 12px; border-radius: 6px; }
+
+/* --- TABLAS DE AUDITORÍA Y REPORTES EJECUTIVOS --- */
+.table-container, .section-card {
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.section-header {
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+table.table-auditoria th, .table-custom th {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  text-align: center;
+  vertical-align: middle;
+  padding: 7px 5px !important;
+}
+
+table.table-auditoria td, .table-custom td {
+  white-space: nowrap;
+  vertical-align: middle;
+  font-size: 0.75rem;
+  padding: 5px 8px !important;
+}
+
+.badge-si {
+  background-color: #dcfce7;
+  color: #15803d;
+  font-weight: 900;
+  font-size: 0.85rem;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.badge-no {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  font-weight: 900;
+  font-size: 0.85rem;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.badge-modelo-info {
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+/* --- TARJETAS KPI --- */
+.kpi-card {
+  background: white;
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  height: 100%;
+}
+
+.kpi-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+}
+
+.kpi-value {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.img-preview {
+  width: 44px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+}
+
+/* Elementos exclusivos de impresión permanecen ocultos en pantalla */
+.print-header, .print-only {
+  display: none !important;
+}
+/* --- EXPANSIÓN RESPONSIVA DEL ERP CENTRAL (PC GRANDE + CELULAR ADAPTABLE) --- */
+.main-card {
+  transition: max-width 0.25s ease-in-out;
+}
+
+.main-card.erp-expanded {
+  max-width: 1140px !important;
+  width: 98% !important;
+  margin: 15px auto !important;
+}
+
+@media (max-width: 768px) {
+  body.bg-panel-login {
+    padding: 8px !important;
+    align-items: flex-start !important;
+  }
+  .main-card,
+  .main-card.erp-expanded {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 14px !important;
+  }
+  .header-accent {
+    padding: 16px 12px !important;
+  }
+}

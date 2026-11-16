@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Control Operativo de Supervisión - Cleanings ERP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../modulo-asistencia/css/asistencia.css">
+</head>
+<body class="p-2 p-md-3">
+  <div class="container-fluid" style="max-width: 1280px;">
+
+    <div class="header-asistencia d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h5 class="m-0 fw-bold">👷 CONTROL OPERATIVO DE SUPERVISIÓN EN CAMPO</h5>
+        <small style="opacity: 0.92;">Semáforo de Timbrado en Vivo, Creación de Servicios Eventuales (QR) y Gestión de Permisos/Coberturas</small>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="../../modulo-asistencia/views/asistencia.html" class="btn btn-light btn-sm fw-bold">
+          🕒 Ver reflejado en Módulo Nómina
+        </a>
+        <a href="../../index.html" class="btn btn-outline-light btn-sm fw-bold">
+          ← Menú Principal ERP
+        </a>
+      </div>
+    </div>
+
+    <!-- Filtro de Contrato y Fecha Operativa -->
+    <div class="card-modulo p-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-6">
+          <label class="form-label small fw-bold text-primary m-0">🏢 Contrato / Sede Supervisada:</label>
+          <select class="form-select form-select-sm fw-bold border-primary" id="supContrato"></select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label small fw-bold text-primary m-0">📅 Fecha Operativa:</label>
+          <input type="date" class="form-control form-control-sm fw-bold border-primary" id="supFecha">
+        </div>
+        <div class="col-12 col-md-2">
+          <button type="button" class="btn btn-primary btn-sm w-100 fw-bold" id="btnRefrescarSupervision">
+            🔄 Actualizar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="msgFeedbackSup" class="alert alert-success py-2 px-3 mb-3 small fw-bold text-center shadow-sm" style="display: none;"></div>
+
+    <!-- 1. MONITOR SEMÁFORO DE ASISTENCIA EN VIVO (ROJO = NO HA TIMBRADO / VERDE = YA TIMBRÓ) -->
+    <div class="card-modulo p-3">
+      <div class="fw-bold text-dark small mb-2">
+        🚦 1. MONITOR EN VIVO DE ASISTENCIA DEL PERSONAL (ROJO = AÚN NO TIMBRA / VERDE = YA TIMBRÓ CON FOTO TIMESTAMP)
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+          <thead>
+            <tr>
+              <th>AUXILIAR</th>
+              <th>TURNO EN CALENDARIO</th>
+              <th>HORARIO PREVISTO</th>
+              <th>SEMÁFORO EN VIVO</th>
+              <th>HORA ENTRADA</th>
+              <th>HORA SALIDA</th>
+              <th>FOTO TIMESTAMP</th>
+            </tr>
+          </thead>
+          <tbody id="tbodySemaforoSupervision"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- 2. CREAR SERVICIO EVENTUAL / FIN DE OBRA Y ASIGNAR AUXILIARES (CONECTA A PESTAÑAS 2, 4 Y 5) -->
+      <div class="col-12 col-md-6">
+        <div class="card-modulo p-3 h-100">
+          <div class="fw-bold text-primary small mb-2">
+            🚀 2. CREAR SERVICIO EVENTUAL (EJ: AKANA 3), GENERAR QR Y REASIGNAR AUXILIAR
+          </div>
+          <form id="formSupCrearServicio" class="row g-2">
+            <div class="col-4">
+              <label class="form-label small fw-bold m-0">Código *</label>
+              <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="supSrvCodigo" placeholder="AKANA-3" required>
+            </div>
+            <div class="col-8">
+              <label class="form-label small fw-bold m-0">Nombre del Servicio / Fin de Obra *</label>
+              <input type="text" class="form-control form-control-sm text-uppercase" id="supSrvNombre" placeholder="FIN DE OBRA AKANA 3" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold text-info m-0">Auxiliar que sale de su punto a este Servicio (Se pintará CELESTE en Calendario) *</label>
+              <select class="form-select form-select-sm fw-bold border-info" id="supSrvAuxiliarSale" required></select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold text-success m-0">Compañero que se queda doblando / cubriendo en el punto (Se pintará VERDE)</label>
+              <select class="form-select form-select-sm fw-bold border-success" id="supSrvAuxiliarCubre">
+                <option value="">-- Ninguno / No requiere cobertura --</option>
+              </select>
+            </div>
+            <div class="col-12 mt-2">
+              <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-2">
+                🚀 Crear Servicio, Generar QR y Actualizar Calendario de Nómina
+              </button>
+            </div>
+          </form>
+
+          <div id="cajaQRSupServicio" class="text-center p-2 mt-3 border rounded bg-light" style="display: none;">
+            <div class="fw-bold text-primary small" id="lblQRSupTitulo">-</div>
+            <img id="imgQRSupServicio" src="" class="my-2 border p-1 bg-white rounded" style="max-width: 150px;">
+            <div>
+              <a id="linkAbrirQRSupServicio" href="#" target="_blank" class="btn btn-sm btn-success fw-bold">📷 Abrir Reloj QR de este Servicio ↗</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. REGISTRAR PERMISO MÉDICO, CALAMIDAD O CAMBIO DE TURNO CON FOTO (CONECTA A PESTAÑAS 2, 3 Y 6) -->
+      <div class="col-12 col-md-6">
+        <div class="card-modulo p-3 h-100">
+          <div class="fw-bold text-danger small mb-2">
+            📋 3. REPORTAR PERMISO MÉDICO, CALAMIDAD O CAMBIO DE TURNO (CON EVIDENCIA FOTOGRÁFICA)
+          </div>
+          <form id="formSupNovedad" class="row g-2">
+            <div class="col-12">
+              <label class="form-label small fw-bold m-0">Tipo de Novedad *</label>
+              <select class="form-select form-select-sm fw-bold" id="supNovTipo" required>
+                <option value="PERMISO_MEDICO">Permiso Médico (Certificado IESS / Salud)</option>
+                <option value="CALAMIDAD">Calamidad Doméstica</option>
+                <option value="CAMBIO_TURNO">Cambio de Turno / Cobertura en Punto</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-danger m-0">Auxiliar Ausente / Titular *</label>
+              <select class="form-select form-select-sm fw-bold border-danger" id="supNovTitular" required></select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-success m-0">Auxiliar que Cubre (Verde) *</label>
+              <select class="form-select form-select-sm fw-bold border-success" id="supNovReemplazo">
+                <option value="">-- Sin reemplazo --</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold m-0">Observación / Detalle del Cambio *</label>
+              <input type="text" class="form-control form-control-sm" id="supNovDesc" placeholder="Ej: Juan sale a permiso médico, Luis cubre su turno hasta las 19:00" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold m-0">Subir Foto de Evidencia (Certificado / Respaldo)</label>
+              <input type="file" class="form-control form-control-sm" id="supNovFoto" accept="image/*">
+            </div>
+            <div class="col-12 mt-2">
+              <button type="submit" class="btn btn-sm btn-dark w-100 fw-bold py-2">
+                🔔 Enviar Notificación a Nómina y Actualizar Calendario
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="../js/supervision.ctrl.js"></script>
+</body>
+</html>

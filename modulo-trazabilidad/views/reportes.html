@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>INFORME DE TRABAJO CL-OP-0032 - CLEANINGS ERP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/estilos-pantalla.css">
+  <link rel="stylesheet" href="../css/print-a4-vertical.css">
+</head>
+<body class="p-3">
+  <!-- ======================================================== -->
+  <!-- 1. VISTA DE PANTALLA (SOLO EN NAVEGADOR - NO-PRINT)      -->
+  <!-- ======================================================== -->
+  <div class="no-print">
+    <!-- BARRA SUPERIOR -->
+    <div class="section-card p-3">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <h5 class="fw-bold m-0 text-dark">INFORME EJECUTIVO DE GESTIÓN</h5>
+            <span class="badge bg-primary">CL-OP-0032</span>
+          </div>
+          <span class="text-muted small" id="lblSubtituloReporte">Trazabilidad Microbiológica ATP y Limpieza Hospitalaria</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm fw-bold px-3 shadow-sm" id="btnVolverMenu">
+            ← Menú
+          </button>
+          <button class="btn btn-dark btn-sm fw-bold px-3 shadow-sm" id="btnExportarPDF">
+            Exportar a PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTROS CON CONTRATO, PISO, ÁREA Y MES -->
+    <div class="section-card p-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label fw-bold small text-primary m-0 mb-1">0. Contrato / Cliente *</label>
+          <select class="form-select form-select-sm border-primary fw-bold" id="filtroContrato">
+            <option value="">Cargando contratos...</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold small text-primary m-0 mb-1">1. Piso / Sede *</label>
+          <select class="form-select form-select-sm border-primary fw-bold" id="filtroPiso">
+            <option value="TODOS">Consolidado Global (Todos los Pisos)</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold small text-primary m-0 mb-1">2. Área Específica</label>
+          <select class="form-select form-select-sm border-primary" id="filtroArea" disabled>
+            <option value="TODAS">Todas las áreas del piso</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold small text-secondary m-0 mb-1">3. Mes de Evaluación</label>
+          <select class="form-select form-select-sm" id="filtroMes">
+            <option value="">Todos los meses</option>
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08">Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+          <button class="btn btn-primary btn-sm fw-bold w-100 shadow-sm" id="btnActualizarKPIs">
+            Actualizar Métricas
+          </button>
+          <button class="btn btn-light btn-sm border px-3" id="btnResetFiltros" title="Reestablecer">
+            ↺
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TARJETAS DE KPIS EN PANTALLA -->
+    <div class="mb-3">
+      <div class="row g-2">
+        <div class="col-md col-6">
+          <div class="kpi-card border-start border-4 border-primary">
+            <div class="kpi-title">Limpiezas Ejecutadas</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-primary" id="kpiTotalLimpiezas">0</div>
+              <span class="badge bg-light text-muted border">CL-OP-0030</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.65rem;">
+              <span class="text-success fw-bold" id="kpiConcurrentes">0</span> Conc. | 
+              <span class="text-info fw-bold" id="kpiTerminales">0</span> Term.
+            </div>
+          </div>
+        </div>
+        <div class="col-md col-6">
+          <div class="kpi-card border-start border-4 border-warning">
+            <div class="kpi-title">Terminales: Meta vs Real</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-dark">
+                <span id="kpiTerminalesReal">0</span> 
+                <span class="fs-6 text-muted fw-normal">/ <span id="kpiTerminalesMeta">0</span></span>
+              </div>
+              <span class="badge bg-warning text-dark fw-bold" id="badgePctTerminales">0%</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.65rem;">Meta: 2 term./mes</div>
+          </div>
+        </div>
+        <div class="col-md col-4">
+          <div class="kpi-card border-start border-4 border-info">
+            <div class="kpi-title">Hisopados Realizados</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-info" id="kpiTotalHisopados">0</div>
+              <span class="badge bg-light text-muted border">CL-OP-0031</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.65rem;">Puntos verificados</div>
+          </div>
+        </div>
+        <div class="col-md col-4">
+          <div class="kpi-card border-start border-4 border-success">
+            <div class="kpi-title">Conformidad ATP</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-success" id="kpiTasaAprobacion">0%</div>
+              <span class="badge bg-success text-white fw-bold">APROBADO</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.65rem;">
+              <span id="kpiCantAprobados" class="fw-bold text-success">0</span> conformes
+            </div>
+          </div>
+        </div>
+        <div class="col-md col-4">
+          <div class="kpi-card border-start border-4 border-danger">
+            <div class="kpi-title">Tasa de Desviación</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-danger" id="kpiTasaRechazo">0%</div>
+              <span class="badge bg-danger text-white fw-bold">RECHAZADO</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.65rem;">
+              <span id="kpiCantRechazos" class="fw-bold text-danger">0</span> desviaciones
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISTRIBUCIÓN ATP EN PANTALLA -->
+    <div class="section-card mb-3">
+      <div class="section-header d-flex justify-content-between align-items-center">
+        <span>ESTADO MICROBIOLÓGICO DE SUPERFICIES (ATP)</span>
+        <span class="badge bg-light text-dark border">UMBRAL: ≤ 15 RLU CRÍTICAS / ≤ 45 RLU GENERAL</span>
+      </div>
+      <div class="p-3">
+        <div class="mb-2 d-flex justify-content-between small fw-bold">
+          <span>Distribución de Muestreos</span>
+          <span id="txtProgresoATP">0 hisopados registrados</span>
+        </div>
+        <div class="progress" style="height: 20px;">
+          <div class="progress-bar bg-success fw-bold" id="barraAprobados" style="width: 100%">0% APROBADO</div>
+          <div class="progress-bar bg-danger fw-bold" id="barraRechazados" style="width: 0%">0% RECHAZADO</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLA DE TRAZABILIDAD EN PANTALLA -->
+    <div class="section-card mb-3">
+      <div class="section-header d-flex justify-content-between align-items-center">
+        <span>REGISTRO Y TRAZABILIDAD DE HISOPADOS ATP</span>
+        <span class="badge bg-primary">TRAZABILIDAD</span>
+      </div>
+      <div class="p-0 table-responsive">
+        <table class="table table-bordered table-striped table-hover table-custom m-0">
+          <thead>
+            <tr>
+              <th>FECHA / HORA</th>
+              <th>PISO</th>
+              <th>ÁREA</th>
+              <th>PUNTO DE MUESTREO</th>
+              <th>RLU</th>
+              <th>ESTADO</th>
+              <th>RESPONSABLE CLIENTE</th>
+              <th>ACCIÓN CORRECTIVA TOMADA</th>
+              <th>EVIDENCIA</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTablaIncidencias">
+            <tr>
+              <td colspan="9" class="text-center py-4 text-muted">Cargando datos...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- NUEVA SECCIÓN (ZONA AMARILLA): RENDIMIENTO POR TRABAJADOR -->
+    <!-- ======================================================== -->
+    <div class="section-card mb-3">
+      <div class="section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <span>RENDIMIENTO POR TRABAJADOR</span>
+          <span class="badge bg-primary">PRODUCTIVIDAD Y CALIDAD</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <label class="small fw-bold text-muted m-0">Filtrar Trabajador:</label>
+          <select class="form-select form-select-sm border-primary fw-bold" id="filtroTrabajadorRendimiento" style="min-width: 220px;">
+            <option value="TODOS">Todos los trabajadores</option>
+          </select>
+        </div>
+      </div>
+      <div class="p-0 table-responsive">
+        <table class="table table-bordered table-striped table-hover table-custom m-0">
+          <thead>
+            <tr>
+              <th style="width: 45px;">#</th>
+              <th style="text-align: left; padding-left: 12px;">AUXILIAR / TRABAJADOR</th>
+              <th style="width: 130px;">LIMPIEZAS CONCURRENTES</th>
+              <th style="width: 130px;">LIMPIEZAS TERMINALES</th>
+              <th style="width: 130px;">TOTAL EJECUCIONES</th>
+              <th style="width: 150px;">% CUMPLIMIENTO CHECKLIST</th>
+              <th style="width: 180px;">CALIDAD ATP (HISOPADOS)</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTablaRendimiento">
+            <tr>
+              <td colspan="7" class="text-center py-4 text-muted">Cargando métricas de auxiliares...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 2. INFORME FORMAL EXCLUSIVO PARA IMPRESIÓN (PDF A4)      -->
+  <!-- ======================================================== -->
+  <div class="print-only">
+    <!-- MEMBRETE FORMAL -->
+    <table class="table table-bordered border-dark align-middle mb-2" style="border: 1.5px solid #0f172a;">
+      <tr>
+        <td style="width: 25%; text-align: center; padding: 4px;">
+          <img id="imgLogoCleanings" src="https://drive.google.com/thumbnail?id=14SqUGvm7kp9-WbKZI85KwjSr-JCUUoXO&sz=w500" style="max-width: 130px; max-height: 55px; object-fit: contain;" alt="CLEANINGS ECUADOR">
+        </td>
+        <td style="width: 50%; text-align: center; padding: 4px;">
+          <h6 class="m-0 fw-bold" style="font-size: 0.92rem; color: #0f172a;">INFORME DE TRABAJO</h6>
+          <div class="fw-bold" style="font-size: 0.80rem; color: #0284c7;">SISTEMA DE GESTIÓN DE CALIDAD-BIOSEGURIDAD Y CONTROL DE IAAS</div>
+          <small class="fw-semibold text-secondary" id="pdfSubtituloProyecto">PROYECTO: "HOSPITAL DEL HOLDING"</small>
+        </td>
+        <td style="width: 25%; font-size: 0.65rem; padding: 4px 8px;">
+          <div><strong>CÓDIGO:</strong> CL-OP-0045</div>
+          <div><strong>REVISIÓN:</strong> 01</div>
+          <div><strong>VERSIÓN:</strong> 00</div>
+          <div><strong>FECHA:</strong> <span id="pdfFechaEmision">-</span></div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- FICHA TÉCNICA UNIFICADA -->
+    <table class="table table-sm table-bordered border-secondary mb-2" style="font-size: 0.70rem;">
+      <tr class="table-light">
+        <td style="width: 20%;"><strong>CLIENTE / SEDE:</strong></td>
+        <td colspan="3"><strong id="pdfClienteSedeUnificado">HOSPITAL DEL HOLDING</strong></td>
+      </tr>
+      <tr class="table-light">
+        <td style="width: 20%;"><strong>PERIODO EVALUADO:</strong></td>
+        <td style="width: 30%;"><strong id="pdfPeriodo">-</strong></td>
+        <td style="width: 20%;"><strong>RESPONSABLE TÉCNICO:</strong></td>
+        <td style="width: 30%;">ING. HENRY AZOGUE P. (OPERACIONES, CALIDAD Y SST)</td>
+      </tr>
+    </table>
+
+    <!-- 1. RESUMEN EJECUTIVO Y ALCANCE -->
+    <div class="p-2 mb-2 border rounded bg-light" style="font-size: 0.70rem; line-height: 1.35;">
+      <strong>1. RESUMEN EJECUTIVO Y ALCANCE:</strong><br>
+      Evaluación técnica y microbiológica de los servicios de saneamiento e higiene ejecutados por <strong>CLEANINGS ECUADOR</strong> en las instalaciones de <strong id="pdfNombreClienteTexto">HOSPITAL DEL HOLDING</strong>. El control cuantitativo se efectúa mediante bioluminiscencia por Adenosín Trifosfato (ATP) para certificar la ausencia de biocarga en superficies de alto contacto asistencial.
+    </div>
+
+    <!-- 2. MARCO LEGAL -->
+    <div class="p-2 mb-2 border rounded bg-light" style="font-size: 0.70rem; line-height: 1.4;">
+      <strong>2. MARCO LEGAL:</strong>
+      <ul class="m-0 ps-3 mt-1">
+        <li>Bioseguridad para los establecimientos de salud pública del Ecuador, año 2016.</li>
+        <li>Investigación "Un punto de referencia ATP modificado para evaluar la limpieza en superficies de ambientes hospitalarios".</li>
+      </ul>
+    </div>
+
+    <!-- 3. METODOLOGÍA DE MEDICIÓN -->
+    <div class="mb-2">
+      <div class="fw-bold mb-1" style="font-size: 0.72rem;">3. METODOLOGÍA DE MEDICIÓN (RANGOS DE ACEPTABILIDAD RLU):</div>
+      <table class="table table-sm table-bordered text-center mb-2" style="font-size: 0.65rem;">
+        <thead class="table-secondary">
+          <tr>
+            <th>Criterio</th>
+            <th>Áreas Críticas</th>
+            <th>Áreas Semicríticas / No Críticas</th>
+            <th>Interpretación Forense</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="fw-bold text-success">Limpieza Óptima</td>
+            <td>0 - 15 RLU</td>
+            <td>0 - 45 RLU</td>
+            <td>Superficie libre de ATP.</td>
+          </tr>
+          <tr>
+            <td class="fw-bold text-warning">Alerta / Revisar</td>
+            <td>16 - 25 RLU</td>
+            <td>46 - 85 RLU</td>
+            <td>Indica posible fallo. Requiere re-limpieza y re-test.</td>
+          </tr>
+          <tr>
+            <td class="fw-bold text-danger">Fallo Crítico</td>
+            <td>&gt; 25 RLU</td>
+            <td>&gt; 85 RLU</td>
+            <td>Riesgo microbiológico. Acción correctiva inmediata.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4. DESARROLLO -->
+    <div class="mb-2">
+      <div class="fw-bold mb-1" style="font-size: 0.72rem;">4. DESARROLLO:</div>
+      <p class="text-muted small m-0 mb-2" style="font-size: 0.70rem; line-height: 1.35; text-align: justify;">
+        Las pruebas de ATP se han convertido en una herramienta fundamental para evaluar la limpieza y la desinfección en entornos sanitarios. Este método rápido y efectivo mide la cantidad de ATP presente en superficies, lo que indica la carga biológica y la posible contaminación microbiana.
+      </p>
+      <table class="table table-sm table-bordered text-center mb-0" style="font-size: 0.66rem;">
+        <thead class="table-dark">
+          <tr>
+            <th>FECHA / HORA</th>
+            <th>PISO</th>
+            <th>ÁREA</th>
+            <th>PUNTO DE MUESTREO</th>
+            <th>RLU</th>
+            <th>ESTADO</th>
+            <th>RESPONSABLE CLIENTE</th>
+            <th>ACCIÓN CORRECTIVA TOMADA</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpoTablaIncidenciasPrint"></tbody>
+      </table>
+    </div>
+
+    <!-- 5. EVIDENCIA FOTOGRÁFICA -->
+    <div class="mb-3">
+      <div class="fw-bold text-dark mb-2" style="font-size: 0.75rem;">5. EVIDENCIA FOTOGRÁFICA:</div>
+      <div id="contenedorFotosPrint" class="row g-2 mb-2"></div>
+    </div>
+
+    <!-- 6. INDICADORES DE MEDICIÓN OBJETIVA (KPIS) -->
+    <div class="mb-3">
+      <div class="fw-bold text-dark mb-1" style="font-size: 0.75rem;">6. INDICADORES DE MEDICIÓN OBJETIVA (KPIS):</div>
+      <div class="row g-2 mb-2">
+        <div class="col-4">
+          <div class="kpi-card border-start border-4 border-primary">
+            <div class="kpi-title">Limpiezas Ejecutadas</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-primary" id="kpiTotalLimpiezasPrint">0</div>
+              <span class="badge bg-light text-muted border">CL-OP-0030</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.62rem;">
+              <span id="kpiConcPrint">0</span> Conc. | <span id="kpiTermPrint">0</span> Term.
+            </div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="kpi-card border-start border-4 border-warning">
+            <div class="kpi-title">Terminales: Meta vs Real</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-dark">
+                <span id="kpiTermRealPrint">0</span> / <span id="kpiTermMetaPrint">0</span>
+              </div>
+              <span class="badge bg-warning text-dark fw-bold" id="badgePctTerminalesPrint">0%</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.62rem;">Meta: 2 term./mes</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="kpi-card border-start border-4 border-info">
+            <div class="kpi-title">Hisopados Realizados</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-info" id="kpiTotalHisopadosPrint">0</div>
+              <span class="badge bg-light text-muted border">CL-OP-0031</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.62rem;">Puntos verificados</div>
+          </div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="kpi-card border-start border-4 border-success">
+            <div class="kpi-title">Conformidad ATP</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-success" id="kpiTasaAprobacionPrint">0%</div>
+              <span class="badge bg-success text-white fw-bold">APROBADO</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.62rem;">
+              <span id="kpiCantAprobadosPrint">0</span> conformes
+            </div>
+          </div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="kpi-card border-start border-4 border-danger">
+            <div class="kpi-title">Tasa de Desviación</div>
+            <div class="d-flex justify-content-between align-items-baseline mt-1">
+              <div class="kpi-value text-danger" id="kpiTasaRechazoPrint">0%</div>
+              <span class="badge bg-danger text-white fw-bold">RECHAZADO</span>
+            </div>
+            <div class="small text-muted mt-1" style="font-size: 0.62rem;">
+              <span id="kpiCantRechazosPrint">0</span> desviaciones
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. PLAN DE ACCIÓN Y MEJORA CONTINUA -->
+    <div class="p-2 mb-2 border rounded bg-light" style="font-size: 0.70rem; line-height: 1.4;">
+      <strong>7. PLAN DE ACCIÓN Y MEJORA CONTINUA:</strong><br>
+      • <strong>Capacitación Operativa:</strong> Refuerzo trimestral estandarizado (SOPs) sobre técnicas mecánicas de arrastre y tiempos de contacto de desinfectantes en superficies de alto riesgo asistencial.<br>
+      • <strong>Monitoreo Continuo:</strong> Mantener hisopados aleatorios con luminómetro para verificar la efectividad de las acciones correctivas y asegurar la inocuidad ambiental.
+    </div>
+
+    <div class="text-center fw-bold mt-3 mb-2" style="font-size: 0.74rem; color: #0284c7;">
+      "Somos tu aliado de confianza en la limpieza hospitalaria"
+    </div>
+
+    <!-- CUADRO FORMAL DE VALIDACIÓN Y FIRMAS -->
+    <table class="table table-bordered border-dark text-center align-middle mt-4 mb-2 cuadro-firmas-print" style="border: 1.5px solid #0f172a; page-break-inside: avoid;">
+      <thead>
+        <tr class="table-secondary" style="font-size: 0.70rem; letter-spacing: 0.5px;">
+          <th style="width: 50%; padding: 4px; border: 1px solid #0f172a;">REALIZADO POR:</th>
+          <th style="width: 50%; padding: 4px; border: 1px solid #0f172a;">REVISADO POR:</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="height: 60px; border: 1px solid #0f172a;"></td>
+          <td style="height: 60px; border: 1px solid #0f172a;"></td>
+        </tr>
+        <tr style="font-size: 0.68rem; line-height: 1.35;">
+          <td style="padding: 6px; border: 1px solid #0f172a; vertical-align: top;">
+            <strong style="font-size: 0.74rem;">ING. HENRY AZOGUE P.</strong><br>
+            <span style="color: #475569;">Coordinador de Operaciones, Calidad y SST</span><br>
+            <strong style="color: #0f172a;">CLEANINGS ECUADOR</strong>
+          </td>
+          <td style="padding: 6px; border: 1px solid #0f172a; vertical-align: top;">
+            <strong style="font-size: 0.74rem;">ING. MARIA FERNANDA SANCHEZ</strong><br>
+            <span style="color: #475569;">Gerente Comercial</span><br>
+            <strong style="color: #0f172a;">CLEANINGS ECUADOR</strong>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- VISOR FLOTANTE NATIVO (NO-PRINT) -->
+  <div id="visorFotoNativo" class="no-print" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(15, 23, 42, 0.85); z-index: 999999; justify-content: center; align-items: center; padding: 15px;">
+    <div id="cajaInternaVisor" style="background: #ffffff; border-radius: 8px; max-width: 500px; width: 100%; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+      <div class="d-flex justify-content-between align-items-center bg-dark text-white px-3 py-2">
+        <span class="fw-bold small" id="vTitulo">Evidencia Fotográfica</span>
+        <button type="button" class="btn-close btn-close-white" id="btnCerrarVisorX"></button>
+      </div>
+      <div class="p-3 text-center bg-light">
+        <img id="vImg" src="" style="max-height: 400px; max-width: 100%; object-fit: contain;" class="rounded border shadow-sm">
+        <div class="small text-muted fw-bold mt-2" id="vSub"></div>
+      </div>
+      <div class="p-2 text-end border-top bg-white">
+        <button type="button" class="btn btn-secondary btn-sm px-3" id="btnCerrarVisorBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="../js/reportes.ctrl.js"></script>
+</body>
+</html>
