@@ -1,10 +1,8 @@
 // =====================================================================
 // ARCHIVO: modulo-trazabilidad/js/luminometria.ctrl.js
-// Controlador de Auditoría Microbiológica y Luminometría ATP (CL-OP-0031)
-// Incluye: NO CRÍTICA (45 RLU), Vinculación exclusiva a última DT,
-// Fecha local Ecuador y Respaldo Offline-First con Fotografías en Cola
+// Controlador de Auditoría Luminometría ATP, Compresión Foto y Cruce Auxiliar
 // =====================================================================
-import { supabase, subirFotoEvidenciaATP } from "../../core/supabaseClient.js";
+import { supabase, subirFotoHisopadoStorage } from "../../core/supabaseClient.js";
 import {
   obtenerParametrosURL,
   obtenerSesionActiva,
@@ -13,131 +11,42 @@ import {
   obtenerContratosAutorizados,
   obtenerMapaPisosAreasPorContrato
 } from "../../core/router.js";
-import {
-  inicializarMonitorOffline,
-  insertarConRespaldoOffline,
-  guardarCacheContratos,
-  obtenerCacheContratos,
-  guardarCacheCatalogoAreas,
-  obtenerCacheCatalogoAreas
-} from "../../core/offlineSync.js";
-
-const PUNTOS_SUGERIDOS = {
-  CRITICA: [
-    "MESA QUIRÚRGICA",
-    "LÁMPARA CIELÍTICA",
-    "MESA DE MAYO / RIÑÓN",
-    "MÁQUINA DE ANESTESIA",
-    "CARRO DE PARO",
-    "BARANDAL DE CAMILLA",
-    "MONITOR DE SIGNOS VITALES",
-    "LAVAMANOS QUIRÚRGICO",
-    "MANIJA DE PUERTA / PICAPORTE",
-    "PARED / ÁNGULO CRÍTICO"
-  ],
-  BANOS: [
-    "PALANCA / BOTÓN DE INODORO",
-    "ASIENTO DE INODORO",
-    "GRIFERÍA DE LAVAMANOS",
-    "DISPENSADOR DE JABÓN / PAPEL",
-    "MANIJA INTERIOR DE PUERTA",
-    "PARED DIVISORIA"
-  ],
-  SEMICRITICA: [
-    "PICAPORTE",
-    "ÁNGULO DE PARED",
-    "BARANDAL DE CAMA / CAMILLA",
-    "MESA DE ALIMENTACIÓN / PUENTE",
-    "INTERRUPTOR DE LUZ",
-    "LLAVE DE AGUA / LAVAMANOS",
-    "SILLA DE ESPERA / ESTACIÓN ENFERMERÍA",
-    "DISPENSADOR DE ALCOHOL GEL",
-    "TIMBRE DE LLAMADO"
-  ],
-  NOCRITICA: [
-    "PICAPORTE",
-    "ÁNGULO DE PARED",
-    "BARANDAL DE CAMA / CAMILLA",
-    "MESA DE ALIMENTACIÓN / PUENTE",
-    "INTERRUPTOR DE LUZ",
-    "LLAVE DE AGUA / LAVAMANOS",
-    "SILLA DE ESPERA / ESTACIÓN ENFERMERÍA",
-    "DISPENSADOR DE ALCOHOL GEL",
-    "TIMBRE DE LLAMADO"
-  ]
-};
 
 let catalogoATP = {};
+let mapaContratos = {};
 let rolActual = "SUPERVISOR";
-let auditorActual = "";
+let auditorActual = "Supervisor";
 let auditorIdActual = null;
 let qrContratoInit = "";
 let qrPisoInit = "";
 let qrAreaInit = "";
-let umbralActivo = 45;
-let archivoFotoComprimida = null;
-let dataUrlFotoComprimida = null;
-let mapaContratos = {};
+let fotoBase64Data = "";
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // Activar detector de red y sincronizador automático en segundo plano
-  inicializarMonitorOffline();
-
   const urlParams = obtenerParametrosURL();
   const sesion = obtenerSesionActiva();
 
-  rolActual = homologarRol(urlParams.rol || (sesion ? sesion.rol : "AUXILIAR"));
-  auditorActual =
-    urlParams.auditor ||
-    urlParams.usuario ||
-    (sesion ? (sesion.nombre || sesion.nombre_completo) : "");
-  auditorIdActual = sesion ? (sesion.id || sesion.usuario_id || null) : null;
+  rolActual = homologarRol(urlParams.rol || (sesion ? sesion.rol : "SUPERVISOR"));
+  auditorActual = urlParams.usuario || (sesion ? sesion.nombre : "Auditor de Calidad");
+  auditorIdActual = sesion ? sesion.id : null;
 
-  qrContratoInit = (urlParams.contrato || (sesion ? sesion.qrContrato : "") || "").trim();
-  qrPisoInit = (urlParams.piso || (sesion ? sesion.qrPiso : "") || "").trim();
-  qrAreaInit = (urlParams.area || (sesion ? sesion.qrArea : "") || "").trim();
+  qrContratoInit = urlParams.contrato || (sesion ? sesion.qrContrato : "");
+  qrPisoInit = urlParams.piso || (sesion ? sesion.qrPiso : "");
+  qrAreaInit = urlParams.area || (sesion ? sesion.qrArea : "");
 
-  document.getElementById("lblRolATP").innerText = "Rol: " + rolActual;
+  document.getElementById("atpAuditor").value = auditorActual;
 
   // Enlazar eventos
   document.getElementById("btnVolverMenu").addEventListener("click", () => {
     navegarAVista("panel.html", document.getElementById("atpContrato").value);
   });
-  document.getElementById("atpContrato").addEventListener("change", () => {
-    if (rolActual === "CONTROL") {
-      qrPisoInit = "";
-      qrAreaInit = "";
-    }
-    alCambiarContratoATP();
-  });
+  document.getElementById("atpContrato").addEventListener("change", alCambiarContratoATP);
   document.getElementById("atpPiso").addEventListener("change", cargarAreasATP);
   document.getElementById("atpArea").addEventListener("change", alCambiarAreaATP);
-  document.getElementById("atpPuntoSelect").addEventListener("change", verificarOtroPunto);
-  document.getElementById("atpValorRLU").addEventListener("input", evaluarRLUEnVivo);
-  document.getElementById("atpFotoInput").addEventListener("change", previsualizarYComprimirFoto);
+  document.getElementById("rluMedido").addEventListener("input", evaluarEstadoATP);
+  document.getElementById("fotoHisopado").addEventListener("change", procesarFoto);
   document.getElementById("formATP").addEventListener("submit", enviarATP);
-  document.getElementById("btnOtraMuestra").addEventListener("click", registrarOtraMuestraMismaArea);
-
-  if (rolActual !== "CONTROL" && rolActual !== "SUPERVISOR") {
-    document.getElementById("pantallaBloqueoRol").style.display = "block";
-    return;
-  }
-
-  // REGLA ESTRICTA: Si es SUPERVISOR y no escaneó QR de puerta, bloquear registro manual
-  if (rolActual === "SUPERVISOR" && (!qrPisoInit || !qrAreaInit)) {
-    document.getElementById("pantallaBloqueoRol").style.display = "block";
-    document.getElementById("pantallaBloqueoRol").innerHTML = `
-      <h5 class="fw-bold text-danger">⛔ REQUIERE ESCANEO DE CÓDIGO QR DE PUERTA</h5>
-      <p class="small text-muted mb-3">Para registrar hisopados ATP debe escanear físicamente el código QR del área auditada.</p>
-      <button type="button" class="btn btn-dark btn-sm fw-bold" onclick="window.history.back()">← Volver</button>
-    `;
-    return;
-  }
-
-  document.getElementById("contenidoATP").style.display = "block";
-  if (auditorActual) {
-    document.getElementById("atpResponsable").value = auditorActual;
-  }
+  document.getElementById("btnNuevoHisopado").addEventListener("click", volverAlFormulario);
 
   await inicializarContratosATP();
 });
@@ -146,129 +55,104 @@ async function inicializarContratosATP() {
   const selContrato = document.getElementById("atpContrato");
   selContrato.innerHTML = '<option value="">Cargando contratos...</option>';
 
-  let contratos = [];
-
   try {
-    if (navigator.onLine) {
-      if (rolActual === "CONTROL") {
-        const { data, error } = await supabase
-          .from("trazabilidad_contratos")
-          .select("id, codigo_contrato, nombre_cliente")
-          .eq("activo", true)
-          .order("nombre_cliente", { ascending: true });
-        if (!error && data) contratos = data;
-      } else {
-        contratos = await obtenerContratosAutorizados(auditorIdActual, rolActual);
-      }
-      if (contratos.length > 0) {
-        guardarCacheContratos(contratos);
-      }
+    let contratos = [];
+    if (auditorIdActual) {
+      contratos = await obtenerContratosAutorizados(auditorIdActual, rolActual);
+    } else {
+      const { data } = await supabase
+        .from("trazabilidad_contratos")
+        .select("id, codigo_contrato, nombre_cliente")
+        .eq("activo", true)
+        .order("nombre_cliente", { ascending: true });
+      contratos = data || [];
     }
-  } catch (e) {
-    console.warn("Usando caché local de contratos en ATP:", e.message);
+
+    selContrato.innerHTML = '<option value="">Seleccione contrato...</option>';
+    contratos.forEach(c => {
+      mapaContratos[c.codigo_contrato] = c;
+      const opt = document.createElement("option");
+      opt.value = c.codigo_contrato;
+      opt.textContent = `${c.nombre_cliente} (${c.codigo_contrato})`;
+      selContrato.appendChild(opt);
+    });
+
+    if (qrContratoInit && mapaContratos[qrContratoInit]) {
+      selContrato.value = qrContratoInit;
+    } else if (contratos.length > 0) {
+      selContrato.value = contratos[0].codigo_contrato;
+    }
+
+    await alCambiarContratoATP();
+  } catch (err) {
+    selContrato.innerHTML = '<option value="">Error al conectar catálogo</option>';
   }
-
-  if (contratos.length === 0) {
-    contratos = obtenerCacheContratos();
-  }
-
-  if (contratos.length === 0 && qrContratoInit) {
-    contratos = [{ id: null, codigo_contrato: qrContratoInit, nombre_cliente: qrContratoInit }];
-  }
-
-  selContrato.innerHTML = '<option value="">Seleccione contrato...</option>';
-  contratos.forEach(c => {
-    mapaContratos[c.codigo_contrato] = c;
-    const opt = document.createElement("option");
-    opt.value = c.codigo_contrato;
-    opt.textContent = `${c.nombre_cliente} (${c.codigo_contrato})`;
-    selContrato.appendChild(opt);
-  });
-
-  if (qrContratoInit && mapaContratos[qrContratoInit]) {
-    selContrato.value = qrContratoInit;
-  } else if (contratos.length > 0) {
-    selContrato.value = contratos[0].codigo_contrato;
-  }
-
-  if (rolActual !== "CONTROL") {
-    selContrato.disabled = true;
-    selContrato.classList.add("bg-light");
-  }
-
-  await alCambiarContratoATP();
 }
 
 async function alCambiarContratoATP() {
   const codContrato = document.getElementById("atpContrato").value;
-  const info = mapaContratos[codContrato];
-  document.getElementById("lblSubtituloContratoATP").innerText = info
-    ? `Registro de Hisopados y Unidades Relativas de Luz (RLU) — ${info.nombre_cliente}`
-    : "Registro de Hisopados y Unidades Relativas de Luz (RLU)";
-
-  catalogoATP = {};
-  if (navigator.onLine) {
-    try {
-      catalogoATP = await obtenerMapaPisosAreasPorContrato(codContrato);
-      guardarCacheCatalogoAreas(codContrato, catalogoATP);
-    } catch (e) {
-      catalogoATP = obtenerCacheCatalogoAreas(codContrato);
-    }
-  } else {
-    catalogoATP = obtenerCacheCatalogoAreas(codContrato);
-  }
-
-  if (Object.keys(catalogoATP).length === 0 && qrPisoInit && qrAreaInit) {
-    catalogoATP[qrPisoInit] = [
-      { id: null, area: qrAreaInit, tipo: "SEMICRITICA", umbral: 45 }
-    ];
-  }
+  const infoContrato = mapaContratos[codContrato];
+  document.getElementById("lblSubtituloATP").innerText = infoContrato
+    ? `${infoContrato.nombre_cliente} — CL-OP-0031`
+    : "Control Microbiológico de Superficies — CL-OP-0031";
 
   const selPiso = document.getElementById("atpPiso");
+  selPiso.innerHTML = '<option value="">Cargando pisos...</option>';
+
+  catalogoATP = await obtenerMapaPisosAreasPorContrato(codContrato);
   selPiso.innerHTML = '<option value="">Seleccione piso...</option>';
 
-  const listaPisos = Object.keys(catalogoATP);
-  listaPisos.forEach(piso => {
+  Object.keys(catalogoATP).forEach(p => {
     const opt = document.createElement("option");
-    opt.value = piso;
-    opt.textContent = piso;
+    opt.value = p;
+    opt.textContent = p;
     selPiso.appendChild(opt);
   });
 
   if (qrPisoInit && catalogoATP[qrPisoInit]) {
     selPiso.value = qrPisoInit;
-    if (rolActual !== "CONTROL") {
-      selPiso.disabled = true;
-      selPiso.classList.add("bg-light");
-    }
     cargarAreasATP();
-
     if (qrAreaInit) {
       const selArea = document.getElementById("atpArea");
       selArea.value = qrAreaInit;
-      if (rolActual !== "CONTROL") {
-        selArea.disabled = true;
-        selArea.classList.add("bg-light");
-      }
       alCambiarAreaATP();
     }
-  } else if (rolActual === "CONTROL" && listaPisos.length > 0) {
-    selPiso.disabled = false;
-    selPiso.classList.remove("bg-light");
-    selPiso.value = listaPisos[0];
-    cargarAreasATP();
   } else {
     cargarAreasATP();
   }
+
+  aplicarSeguridadRolATP();
 }
 
-function detectarModeloATP(rawTipo) {
-  const t = (rawTipo || "SEMICRITICA").toUpperCase().trim();
-  if (t.includes("BANO") || t.includes("BAÑO")) return "BANOS";
-  if (t.includes("NO CRITICA") || t.includes("NO CRÍTICA") || t.includes("NOCRITICA") || t.includes("NO_CRITICA")) return "NOCRITICA";
-  if (t.includes("SEMI")) return "SEMICRITICA";
-  if (t.includes("CRITICA") || t.includes("CRÍTICA")) return "CRITICA";
-  return "SEMICRITICA";
+function aplicarSeguridadRolATP() {
+  const selContrato = document.getElementById("atpContrato");
+  const selPiso = document.getElementById("atpPiso");
+  const selArea = document.getElementById("atpArea");
+
+  if (rolActual === "CONTROL") {
+    selContrato.disabled = false;
+    selPiso.disabled = false;
+    selContrato.classList.remove("bg-light");
+    selPiso.classList.remove("bg-light");
+    if (selPiso.value) {
+      selArea.disabled = false;
+      selArea.classList.remove("bg-light");
+    }
+  } else {
+    // SUPERVISOR / AUDITOR: Bloqueado al QR escaneado
+    if (qrContratoInit) {
+      selContrato.disabled = true;
+      selContrato.classList.add("bg-light");
+    }
+    if (qrPisoInit) {
+      selPiso.disabled = true;
+      selPiso.classList.add("bg-light");
+    }
+    if (qrAreaInit) {
+      selArea.disabled = true;
+      selArea.classList.add("bg-light");
+    }
+  }
 }
 
 function cargarAreasATP() {
@@ -286,19 +170,15 @@ function cargarAreasATP() {
     const opt = document.createElement("option");
     opt.value = item.area;
     opt.textContent = item.area;
-    const modNorm = detectarModeloATP(item.tipo);
-    opt.dataset.tipo = modNorm;
-    opt.dataset.umbral = item.umbral || (modNorm === "CRITICA" ? 15 : 45);
-    opt.dataset.areaId = item.id || "";
+    opt.dataset.tipo = (item.tipo || "GENERAL").toUpperCase();
+    opt.dataset.umbral = item.umbral || (item.tipo === "CRITICA" ? 15 : 45);
+    opt.dataset.areaId = item.id;
     selArea.appendChild(opt);
   });
 
   if (rolActual === "CONTROL" || !qrAreaInit) {
     selArea.disabled = false;
     selArea.classList.remove("bg-light");
-    if (rolActual === "CONTROL" && !qrAreaInit && catalogoATP[piso].length > 0) {
-      selArea.value = catalogoATP[piso][0].area;
-    }
   }
   alCambiarAreaATP();
 }
@@ -306,304 +186,258 @@ function cargarAreasATP() {
 function alCambiarAreaATP() {
   const selArea = document.getElementById("atpArea");
   const opt = selArea.options[selArea.selectedIndex];
-  const badge = document.getElementById("badgeClasificacionArea");
-  const selPuntos = document.getElementById("atpPuntoSelect");
+  const inputUmbral = document.getElementById("umbralRLU");
 
   if (!opt || !opt.value) {
-    badge.className = "badge bg-secondary p-2";
-    badge.innerText = "Esperando selección de área...";
-    selPuntos.innerHTML = '<option value="">Seleccione primero el área...</option>';
+    inputUmbral.value = 45;
+    inputUmbral.readOnly = true;
+    evaluarEstadoATP();
     return;
   }
 
-  const tipo = detectarModeloATP(opt.dataset.tipo);
-  umbralActivo = parseInt(opt.dataset.umbral, 10) || (tipo === "CRITICA" ? 15 : 45);
+  const tipoArea = (opt.dataset.tipo || "GENERAL").toUpperCase().trim();
 
-  if (tipo === "CRITICA") {
-    badge.className = "badge bg-danger p-2";
-    badge.innerText = `ÁREA CRÍTICA — Límite estricto: ≤ ${umbralActivo} RLU`;
-  } else if (tipo === "BANOS") {
-    badge.className = "badge bg-primary p-2";
-    badge.innerText = `BATERÍAS SANITARIAS — Límite: ≤ ${umbralActivo} RLU`;
-  } else if (tipo === "NOCRITICA") {
-    badge.className = "badge bg-success p-2";
-    badge.innerText = `ÁREA NO CRÍTICA — Límite: ≤ ${umbralActivo} RLU`;
+  // Solo si es exactamente CRITICA (sin SEMI y sin NO) el límite es 15 RLU.
+  // Para SEMICRITICA, NOCRITICA y BANOS el límite es 45 RLU.
+  if (tipoArea === "CRITICA" || tipoArea === "CRÍTICA") {
+    inputUmbral.value = 15;
   } else {
-    badge.className = "badge bg-warning text-dark p-2";
-    badge.innerText = `ÁREA SEMICRÍTICA — Límite: ≤ ${umbralActivo} RLU`;
+    inputUmbral.value = 45;
   }
 
-  const listaPuntos = PUNTOS_SUGERIDOS[tipo] || PUNTOS_SUGERIDOS.SEMICRITICA;
-  selPuntos.innerHTML = '<option value="">Seleccione superficie o punto...</option>';
-  listaPuntos.forEach(p => {
-    const o = document.createElement("option");
-    o.value = p;
-    o.textContent = p;
-    selPuntos.appendChild(o);
-  });
-
-  const optOtro = document.createElement("option");
-  optOtro.value = "OTRO";
-  optOtro.textContent = "➕ OTRO PUNTO ESPECÍFICO (Escribir manualmente...)";
-  selPuntos.appendChild(optOtro);
-
-  verificarOtroPunto();
-  evaluarRLUEnVivo();
+  inputUmbral.readOnly = true;
+  evaluarEstadoATP();
 }
 
-function verificarOtroPunto() {
-  const val = document.getElementById("atpPuntoSelect").value;
-  const inputOtro = document.getElementById("atpPuntoOtro");
-  if (val === "OTRO") {
-    inputOtro.style.display = "block";
-    inputOtro.required = true;
-    inputOtro.focus();
-  } else {
-    inputOtro.style.display = "none";
-    inputOtro.required = false;
-    inputOtro.value = "";
-  }
-}
+function evaluarEstadoATP() {
+  const rlu = parseFloat(document.getElementById("rluMedido").value);
+  const umbral = parseFloat(document.getElementById("umbralRLU").value) || 45;
+  const badge = document.getElementById("badgeEstadoATP");
 
-function evaluarRLUEnVivo() {
-  const valStr = document.getElementById("atpValorRLU").value;
-  const box = document.getElementById("indicadorResultado");
-
-  if (valStr === "" || isNaN(valStr)) {
-    box.className = "estado-box bg-light text-muted border";
-    box.innerText = "Ingrese el valor RLU para evaluar";
+  if (isNaN(rlu)) {
+    badge.className = "badge bg-secondary";
+    badge.innerText = "- Ingrese valor RLU -";
     return;
   }
 
-  const rlu = parseInt(valStr, 10);
-  if (rlu <= umbralActivo) {
-    box.className = "estado-box estado-aprobado";
-    box.innerText = `✓ APROBADO (${rlu} RLU ≤ ${umbralActivo} RLU) — Superficie Biosegura`;
+  if (rlu <= umbral) {
+    badge.className = "badge-aprobado";
+    badge.innerText = "✓ CONFORME / APROBADO (Superficie Segura)";
   } else {
-    box.className = "estado-box estado-rechazado";
-    box.innerText = `✕ RECHAZADO (${rlu} RLU > ${umbralActivo} RLU) — Requiere Re-limpieza Inmediata`;
+    badge.className = "badge-rechazado";
+    badge.innerText = "✗ NO CONFORME / RECHAZADO (Requiere Re-limpieza)";
   }
 }
 
-function previsualizarYComprimirFoto(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+function procesarFoto(event) {
+  const archivo = event.target.files[0];
+  if (!archivo) {
+    limpiarFotoLocal();
+    return;
+  }
 
   const reader = new FileReader();
-  reader.onload = function (e) {
+  reader.onload = function(e) {
     const img = new Image();
-    img.onload = function () {
+    img.onload = function() {
       const canvas = document.createElement("canvas");
-      const maxDim = 1000;
       let width = img.width;
       let height = img.height;
+      const maxDim = 1200;
 
-      if (width > height && width > maxDim) {
-        height *= maxDim / width;
-        width = maxDim;
-      } else if (height > maxDim) {
-        width *= maxDim / height;
-        height = maxDim;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
       }
-
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Sello de agua automático con fecha y hora de captura en la esquina inferior
-      const sello = new Date().toLocaleString("es-EC");
-      ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
-      ctx.fillRect(0, height - 28, width, 28);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 13px Arial";
-      ctx.fillText(`CLEANINGS ATP | ${sello}`, 10, height - 9);
-
-      // Guardamos el DataURL Base64 para la vista previa y como respaldo si no hay internet
-      dataUrlFotoComprimida = canvas.toDataURL("image/jpeg", 0.72);
-      document.getElementById("imgPreview").src = dataUrlFotoComprimida;
-      document.getElementById("boxPreviewFoto").style.display = "block";
-
-      canvas.toBlob(
-        blob => {
-          archivoFotoComprimida = blob;
-        },
-        "image/jpeg",
-        0.72
-      );
+      fotoBase64Data = canvas.toDataURL("image/jpeg", 0.75);
+      document.getElementById("imgPreview").src = fotoBase64Data;
+      document.getElementById("contenedorPreview").style.display = "block";
     };
     img.src = e.target.result;
   };
-  reader.readAsDataURL(file);
+  reader.readAsDataURL(archivo);
+}
+
+function limpiarFotoLocal() {
+  fotoBase64Data = "";
+  document.getElementById("fotoHisopado").value = "";
+  document.getElementById("imgPreview").src = "";
+  document.getElementById("contenedorPreview").style.display = "none";
 }
 
 /**
- * Busca en Supabase quién fue el último auxiliar que realizó una Limpieza Terminal (DT)
- * en esta área (independientemente de la fecha) para vincularle el hisopado ATP.
+ * Busca automáticamente en Supabase quién fue el último auxiliar que limpió esta área hoy
+ * para vincularle el resultado del hisopado ATP (Cruce Espacio-Tiempo)
  */
 async function buscarUltimoAuxiliarDelArea(contratoUUID, piso, area) {
-  if (!navigator.onLine || !contratoUUID) {
-    return "PENDIENTE VINCULAR (OFFLINE)";
-  }
   try {
-    const { data, error } = await supabase
+    const hoyISO = new Date().toISOString().split("T")[0];
+    const { data } = await supabase
       .from("trazabilidad_registros_limpieza")
-      .select("auxiliar_nombre, fecha_registro, hora_registro")
+      .select("auxiliar_nombre")
       .eq("contrato_id", contratoUUID)
       .eq("piso", piso)
       .eq("nombre_area", area)
-      .ilike("tipo_limpieza", "%Terminal%")
-      .order("fecha_registro", { ascending: false })
+      .eq("fecha_registro", hoyISO)
       .order("hora_registro", { ascending: false })
       .limit(1);
-
-    if (error) throw error;
 
     if (data && data.length > 0 && data[0].auxiliar_nombre) {
       return data[0].auxiliar_nombre;
     }
-    return "SIN DT PREVIA EN EL ÁREA";
+    return "SIN REGISTRO PREVIO HOY";
   } catch (e) {
-    return "PENDIENTE VINCULAR (OFFLINE)";
+    return "NO VINCULADO";
   }
 }
 
 async function enviarATP(e) {
   e.preventDefault();
-  const btn = document.getElementById("btnGuardarATP");
+
   const codContrato = document.getElementById("atpContrato").value || qrContratoInit;
   const infoContrato = mapaContratos[codContrato];
-
-  const piso = document.getElementById("atpPiso").value || qrPisoInit;
+  const pisoVal = document.getElementById("atpPiso").value || qrPisoInit;
   const selArea = document.getElementById("atpArea");
+  const areaVal = selArea.value || qrAreaInit;
   const optArea = selArea.options[selArea.selectedIndex];
-  const area = selArea.value || qrAreaInit;
+  const areaUUID = optArea ? optArea.dataset.areaId : null;
 
-  if (!infoContrato || !piso || !area) {
-    alert("Seleccione Contrato, Piso y Área.");
+  const puntoVal = document.getElementById("puntoMuestreo").value.trim();
+  const respClienteVal = document.getElementById("atpResponsableCliente").value.trim();
+  const rluInput = document.getElementById("rluMedido").value;
+
+  if (!infoContrato || !pisoVal || !areaVal) {
+    alert("Por favor selecciona Contrato, Piso y Área inspeccionada.");
+    return;
+  }
+  if (!respClienteVal) {
+    alert("Por favor ingresa el Responsable por parte del Cliente.");
+    document.getElementById("atpResponsableCliente").focus();
+    return;
+  }
+  if (!puntoVal) {
+    alert("Por favor ingresa el Punto Crítico Muestreado.");
+    document.getElementById("puntoMuestreo").focus();
+    return;
+  }
+  if (rluInput === "" || isNaN(parseFloat(rluInput))) {
+    alert("Por favor ingresa una lectura RLU válida.");
+    document.getElementById("rluMedido").focus();
     return;
   }
 
-  if (!archivoFotoComprimida && !dataUrlFotoComprimida) {
-    alert("Debe capturar la fotografía de evidencia del luminómetro.");
-    return;
-  }
-
-  const puntoSel = document.getElementById("atpPuntoSelect").value;
-  const puntoFinal = (puntoSel === "OTRO"
-    ? document.getElementById("atpPuntoOtro").value
-    : puntoSel
-  ).trim().toUpperCase();
-
-  const valorRLU = parseInt(document.getElementById("atpValorRLU").value, 10);
-  const estado = valorRLU <= umbralActivo
-    ? "APROBADO (Superficie Segura)"
-    : "RECHAZADO (Requiere Re-limpieza)";
-
-  // Fecha y hora local de Ecuador (sin desfase UTC después de las 19:00)
-  const ahora = new Date();
-  const fechaISO =
-    ahora.getFullYear() + "-" +
-    String(ahora.getMonth() + 1).padStart(2, "0") + "-" +
-    String(ahora.getDate()).padStart(2, "0");
-  const horaStr = ahora.toTimeString().split(" ")[0];
-
+  const btn = document.getElementById("btnGuardarATP");
   btn.disabled = true;
-  btn.innerText = "Procesando evidencia y guardando hisopado...";
+  btn.innerText = "Guardando auditoría y evidencia en Supabase...";
+
+  const rlu = parseInt(rluInput, 10);
+  const umbral = parseInt(document.getElementById("umbralRLU").value, 10) || 45;
+  const estado = rlu <= umbral ? "APROBADO" : "RECHAZADO";
+
+  const obsInput = document.getElementById("atpObservaciones").value.trim();
+  const obsFinal = obsInput || (estado === "APROBADO"
+    ? "Conforme con estándar (Limpieza Óptima)"
+    : "Re-limpieza y desinfección mecánica inmediata");
 
   try {
-    let urlFotoPublica = "PENDIENTE_OFFLINE";
-    const pathSugerido = `${codContrato}/${fechaISO}/atp_${Date.now()}.jpg`;
-
-    // 1. Si hay internet, intentamos subir la foto al Storage y buscar el auxiliar de la última DT
-    if (navigator.onLine && archivoFotoComprimida) {
-      try {
-        urlFotoPublica = await subirFotoEvidenciaATP(archivoFotoComprimida, codContrato);
-      } catch (errStorage) {
-        console.warn("Fallo subida directa de foto, se encolará en Base64 para sincronización:", errStorage.message);
-        urlFotoPublica = "PENDIENTE_OFFLINE";
-      }
+    // 1. Subir foto comprimida al Bucket de Supabase Storage (si adjuntó foto)
+    let urlFotoPublica = "";
+    if (fotoBase64Data) {
+      urlFotoPublica = await subirFotoHisopadoStorage(fotoBase64Data, codContrato, areaVal);
     }
 
-    const ultimoAuxiliar = await buscarUltimoAuxiliarDelArea(infoContrato.id, piso, area);
+    // 2. Vincular automáticamente con el último auxiliar que limpió esa área hoy
+    const auxiliarVinculado = await buscarUltimoAuxiliarDelArea(infoContrato.id, pisoVal, areaVal);
 
-    const payloadATP = {
-      contrato_id: infoContrato.id,
-      area_id: optArea && optArea.dataset.areaId ? optArea.dataset.areaId : null,
-      auditor_id: auditorIdActual,
-      auditor_nombre: document.getElementById("atpResponsable").value.trim().toUpperCase(),
-      piso: piso,
-      nombre_area: area,
-      punto_muestreado: puntoFinal,
-      lectura_rlu: valorRLU,
-      umbral_aplicado: umbralActivo,
-      estado_atp: estado,
-      auxiliar_vinculado_nombre: ultimoAuxiliar,
-      responsable_cliente: document.getElementById("atpResponsableArea").value.trim().toUpperCase(),
-      observaciones: document.getElementById("atpObservaciones").value.trim() || "Conforme con estándar (Limpieza Óptima)",
-      foto_evidencia_url: urlFotoPublica,
-      fecha_registro: fechaISO,
-      hora_registro: horaStr,
-      _codigo_contrato_qr: codContrato,
-      _foto_base64_offline: urlFotoPublica === "PENDIENTE_OFFLINE" ? dataUrlFotoComprimida : null,
-      _foto_path_offline: pathSugerido
-    };
+    const ahora = new Date();
+    const fechaISO = ahora.toISOString().split("T")[0];
+    const horaStr = ahora.toTimeString().split(" ")[0];
 
-    const resultado = await insertarConRespaldoOffline(
-      "trazabilidad_registros_atp",
-      payloadATP,
-      `ATP ${area} - ${puntoFinal} (${valorRLU} RLU)`
-    );
+    // 3. Insertar registro en trazabilidad_registros_atp
+    const { error } = await supabase
+      .from("trazabilidad_registros_atp")
+      .insert([{
+        contrato_id: infoContrato.id,
+        area_id: areaUUID,
+        auditor_id: auditorIdActual,
+        auditor_nombre: auditorActual,
+        auxiliar_vinculado_nombre: auxiliarVinculado,
+        piso: pisoVal,
+        nombre_area: areaVal,
+        punto_muestreo: puntoVal,
+        rlu_medido: rlu,
+        umbral_aplicado: umbral,
+        estado: estado,
+        responsable_cliente: respClienteVal,
+        observaciones_accion: obsFinal,
+        foto_url: urlFotoPublica,
+        fecha_registro: fechaISO,
+        hora_registro: horaStr
+      }]);
+
+    if (error) throw error;
 
     btn.disabled = false;
-    btn.innerText = "🔬 Guardar Muestra de Luminometría ATP";
+    btn.innerText = "🧪 Registrar Auditoría ATP";
 
-    document.getElementById("resAtpUbicacion").innerText = `${infoContrato.nombre_cliente} | ${piso} - ${area}`;
-    document.getElementById("resAtpPunto").innerText = puntoFinal;
-    document.getElementById("resAtpLectura").innerText = `${valorRLU} RLU (Límite: ≤ ${umbralActivo} RLU)`;
-    document.getElementById("resAtpEstado").innerText = resultado.modoOffline
-      ? `${estado} — 📦 GUARDADO EN TELÉFONO (Pendiente de red)`
-      : estado;
-    document.getElementById("resAtpEstado").className =
-      valorRLU <= umbralActivo ? "fw-bold text-success" : "fw-bold text-danger";
-    document.getElementById("resAtpAuxiliar").innerText = ultimoAuxiliar;
-    document.getElementById("resAtpRespArea").innerText =
-      document.getElementById("atpResponsableArea").value.trim().toUpperCase();
+    // Poblar tarjeta de confirmación exitosa
+    document.getElementById("lblConfContrato").innerText = infoContrato.nombre_cliente;
+    document.getElementById("lblConfFecha").innerText = ahora.toLocaleDateString("es-EC");
+    document.getElementById("lblConfHora").innerText = horaStr;
+    document.getElementById("lblConfAuditor").innerText = auditorActual;
+    document.getElementById("lblConfAuxiliarVinculado").innerText = auxiliarVinculado;
+    document.getElementById("lblConfResponsableCliente").innerText = respClienteVal;
+    document.getElementById("lblConfUbicacion").innerText = `${pisoVal} - ${areaVal}`;
+    document.getElementById("lblConfPunto").innerText = puntoVal;
 
-    const linkFoto = document.getElementById("resAtpFotoLink");
-    if (resultado.modoOffline || urlFotoPublica === "PENDIENTE_OFFLINE") {
-      linkFoto.href = dataUrlFotoComprimida;
-      linkFoto.innerText = "Ver Fotografía Capturada (En Memoria Local) ↗";
-    } else {
+    const lblRes = document.getElementById("lblConfResultado");
+    lblRes.innerText = `${rlu} RLU (${estado})`;
+    lblRes.className = estado === "APROBADO" ? "fw-bold text-success" : "fw-bold text-danger";
+
+    const rowFoto = document.getElementById("rowConfFoto");
+    const linkFoto = document.getElementById("linkConfFoto");
+    if (urlFotoPublica && urlFotoPublica.startsWith("http")) {
       linkFoto.href = urlFotoPublica;
-      linkFoto.innerText = "Ver Fotografía en la Nube ↗";
+      rowFoto.style.display = "flex";
+    } else {
+      rowFoto.style.display = "none";
     }
 
-    document.getElementById("boxFormularioATP").style.display = "none";
-    document.getElementById("boxExitoATP").style.display = "block";
+    document.getElementById("vistaFormulario").style.display = "none";
+    document.getElementById("vistaExito").style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
 
   } catch (err) {
     btn.disabled = false;
-    btn.innerText = "🔬 Guardar Muestra de Luminometría ATP";
-    alert("Error al guardar muestra ATP: " + err.message);
+    btn.innerText = "🧪 Registrar Auditoría ATP";
+    alert("Error al registrar hisopado en Supabase: " + err.message);
   }
 }
 
-function registrarOtraMuestraMismaArea() {
-  document.getElementById("boxExitoATP").style.display = "none";
-  document.getElementById("boxFormularioATP").style.display = "block";
-
-  document.getElementById("atpPuntoSelect").value = "";
-  document.getElementById("atpPuntoOtro").value = "";
-  document.getElementById("atpPuntoOtro").style.display = "none";
-  document.getElementById("atpValorRLU").value = "";
+function volverAlFormulario() {
+  document.getElementById("puntoMuestreo").value = "";
+  document.getElementById("rluMedido").value = "";
   document.getElementById("atpObservaciones").value = "";
-  document.getElementById("atpFotoInput").value = "";
-  document.getElementById("boxPreviewFoto").style.display = "none";
-  archivoFotoComprimida = null;
-  dataUrlFotoComprimida = null;
+  document.getElementById("atpResponsableCliente").value = "";
+  limpiarFotoLocal();
 
-  evaluarRLUEnVivo();
+  if (rolActual !== "CONTROL") {
+    if (qrPisoInit) document.getElementById("atpPiso").value = qrPisoInit;
+    if (qrAreaInit) document.getElementById("atpArea").value = qrAreaInit;
+  }
+
+  alCambiarAreaATP();
+  document.getElementById("vistaExito").style.display = "none";
+  document.getElementById("vistaFormulario").style.display = "block";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
