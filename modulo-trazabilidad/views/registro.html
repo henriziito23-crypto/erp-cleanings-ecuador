@@ -163,5 +163,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="module" src="../js/registro.ctrl.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('../../sw.js').catch(err => console.warn('SW:', err));
+    }
+  </script>
 </body>
 </html>

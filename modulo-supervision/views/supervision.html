@@ -6,18 +6,27 @@
   <title>Control Operativo de Supervisión - Cleanings ERP</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../../modulo-asistencia/css/asistencia.css">
+  <style>
+    .subtabs-eventuales .nav-link { font-size: 0.82rem; font-weight: 700; padding: 8px 10px; border: 1px solid #cbd5e1; color: #334155; background: #f8fafc; }
+    .subtabs-eventuales .nav-link.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .subtabs-eventuales .nav-link.disabled { opacity: 0.48; cursor: not-allowed; }
+    .badge-flujo { font-size: 0.75rem; padding: 5px 10px; }
+    .foto-thumb-inf { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1; }
+  </style>
 </head>
 <body class="p-2 p-md-3">
-  <div class="container-fluid" style="max-width: 1280px;">
+  <div class="container-fluid" style="max-width: 1380px;">
 
-    <div class="header-asistencia d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <!-- ENCABEZADO CORPORATIVO -->
+    <div class="header-asistencia d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
       <div>
         <h5 class="m-0 fw-bold">👷 CONTROL OPERATIVO DE SUPERVISIÓN EN CAMPO</h5>
-        <small style="opacity: 0.92;">Semáforo de Timbrado en Vivo, Creación de Servicios Eventuales (QR) y Gestión de Permisos/Coberturas</small>
+        <small style="opacity: 0.92;">Gestión Separada de Servicios Eventuales (CRM ➔ Bodega) y Contratos Fijos — Cleanings ERP</small>
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-light text-dark fw-bold px-3 py-2" id="lblUsuarioActivoSup">-</span>
         <a href="../../modulo-asistencia/views/asistencia.html" class="btn btn-light btn-sm fw-bold">
-          🕒 Ver reflejado en Módulo Nómina
+          🕒 Módulo Nómina
         </a>
         <a href="../../index.html" class="btn btn-outline-light btn-sm fw-bold">
           ← Menú Principal ERP
@@ -25,138 +34,544 @@
       </div>
     </div>
 
-    <!-- Filtro de Contrato y Fecha Operativa -->
-    <div class="card-modulo p-3">
-      <div class="row g-2 align-items-end">
-        <div class="col-12 col-md-6">
-          <label class="form-label small fw-bold text-primary m-0">🏢 Contrato / Sede Supervisada:</label>
-          <select class="form-select form-select-sm fw-bold border-primary" id="supContrato"></select>
-        </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label small fw-bold text-primary m-0">📅 Fecha Operativa:</label>
-          <input type="date" class="form-control form-control-sm fw-bold border-primary" id="supFecha">
-        </div>
-        <div class="col-12 col-md-2">
-          <button type="button" class="btn btn-primary btn-sm w-100 fw-bold" id="btnRefrescarSupervision">
-            🔄 Actualizar
-          </button>
-        </div>
-      </div>
-    </div>
+    <div id="msgFeedbackSup" class="alert alert-success py-2 px-3 mb-3 small fw-bold text-center shadow-sm no-print" style="display: none;"></div>
 
-    <div id="msgFeedbackSup" class="alert alert-success py-2 px-3 mb-3 small fw-bold text-center shadow-sm" style="display: none;"></div>
+    <!-- ================================================================= -->
+    <!-- 2 PESTAÑAS PRINCIPALES: SERVICIOS EVENTUALES vs CONTRATOS FIJOS   -->
+    <!-- ================================================================= -->
+    <ul class="nav nav-pills nav-fill gap-2 mb-3 p-2 bg-white rounded border shadow-sm no-print" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active fw-bold fs-6" data-bs-toggle="tab" data-bs-target="#tabMainEventuales" id="btnMainEventuales">
+          🚀 1. SERVICIOS EVENTUALES (DESDE CRM)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold fs-6" data-bs-toggle="tab" data-bs-target="#tabMainContratosFijos" id="btnMainContratosFijos">
+          🏢 2. CONTRATOS FIJOS (SEMÁFORO Y NOVEDADES)
+        </button>
+      </li>
+    </ul>
 
-    <!-- 1. MONITOR SEMÁFORO DE ASISTENCIA EN VIVO (ROJO = NO HA TIMBRADO / VERDE = YA TIMBRÓ) -->
-    <div class="card-modulo p-3">
-      <div class="fw-bold text-dark small mb-2">
-        🚦 1. MONITOR EN VIVO DE ASISTENCIA DEL PERSONAL (ROJO = AÚN NO TIMBRA / VERDE = YA TIMBRÓ CON FOTO TIMESTAMP)
-      </div>
-      <div class="table-responsive">
-        <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
-          <thead>
-            <tr>
-              <th>AUXILIAR</th>
-              <th>TURNO EN CALENDARIO</th>
-              <th>HORARIO PREVISTO</th>
-              <th>SEMÁFORO EN VIVO</th>
-              <th>HORA ENTRADA</th>
-              <th>HORA SALIDA</th>
-              <th>FOTO TIMESTAMP</th>
-            </tr>
-          </thead>
-          <tbody id="tbodySemaforoSupervision"></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="tab-content">
 
-    <div class="row g-3">
-      <!-- 2. CREAR SERVICIO EVENTUAL / FIN DE OBRA Y ASIGNAR AUXILIARES (CONECTA A PESTAÑAS 2, 4 Y 5) -->
-      <div class="col-12 col-md-6">
-        <div class="card-modulo p-3 h-100">
-          <div class="fw-bold text-primary small mb-2">
-            🚀 2. CREAR SERVICIO EVENTUAL (EJ: AKANA 3), GENERAR QR Y REASIGNAR AUXILIAR
-          </div>
-          <form id="formSupCrearServicio" class="row g-2">
-            <div class="col-4">
-              <label class="form-label small fw-bold m-0">Código *</label>
-              <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="supSrvCodigo" placeholder="AKANA-3" required>
-            </div>
-            <div class="col-8">
-              <label class="form-label small fw-bold m-0">Nombre del Servicio / Fin de Obra *</label>
-              <input type="text" class="form-control form-control-sm text-uppercase" id="supSrvNombre" placeholder="FIN DE OBRA AKANA 3" required>
-            </div>
-            <div class="col-12">
-              <label class="form-label small fw-bold text-info m-0">Auxiliar que sale de su punto a este Servicio (Se pintará CELESTE en Calendario) *</label>
-              <select class="form-select form-select-sm fw-bold border-info" id="supSrvAuxiliarSale" required></select>
-            </div>
-            <div class="col-12">
-              <label class="form-label small fw-bold text-success m-0">Compañero que se queda doblando / cubriendo en el punto (Se pintará VERDE)</label>
-              <select class="form-select form-select-sm fw-bold border-success" id="supSrvAuxiliarCubre">
-                <option value="">-- Ninguno / No requiere cobertura --</option>
+      <!-- ================================================================= -->
+      <!-- PESTAÑA PRINCIPAL 1: SERVICIOS EVENTUALES                         -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade show active" id="tabMainEventuales">
+
+        <!-- BARRA DE SERVICIO EVENTUAL SELECCIONADO -->
+        <div class="card-modulo p-3 mb-3 no-print">
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold text-primary m-0">
+                🎯 Servicio Eventual Activo (Creado en CRM):
+              </label>
+              <select class="form-select form-select-sm fw-bold border-primary" id="selServicioEventualSup">
+                <option value="">Cargando servicios desde CRM...</option>
               </select>
             </div>
-            <div class="col-12 mt-2">
-              <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-2">
-                🚀 Crear Servicio, Generar QR y Actualizar Calendario de Nómina
+            <div class="col-6 col-md-4">
+              <div class="p-2 border rounded bg-light small">
+                <div class="text-muted fw-bold" style="font-size: 0.7rem;">SUPERVISOR ASIGNADO / ESTADO FLUJO</div>
+                <div id="lblInfoServicioActivoSup" class="fw-bold text-dark">Seleccione un servicio</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-2">
+              <button type="button" class="btn btn-dark btn-sm w-100 fw-bold py-2" id="btnRefrescarEventuales">
+                🔄 Actualizar CRM
               </button>
             </div>
-          </form>
+          </div>
+        </div>
 
-          <div id="cajaQRSupServicio" class="text-center p-2 mt-3 border rounded bg-light" style="display: none;">
-            <div class="fw-bold text-primary small" id="lblQRSupTitulo">-</div>
-            <img id="imgQRSupServicio" src="" class="my-2 border p-1 bg-white rounded" style="max-width: 150px;">
-            <div>
-              <a id="linkAbrirQRSupServicio" href="#" target="_blank" class="btn btn-sm btn-success fw-bold">📷 Abrir Reloj QR de este Servicio ↗</a>
+        <!-- 7 SUBPESTAÑAS DE SERVICIOS EVENTUALES -->
+        <ul class="nav nav-pills gap-1 mb-3 subtabs-eventuales flex-wrap no-print" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#subEv1Servicios" id="btnSubEv1">
+              1. Servicios de Limpieza
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link disabled" data-bs-toggle="tab" data-bs-target="#subEv2PersonalQR" id="btnSubEv2">
+              2. Personal y QR
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link disabled" data-bs-toggle="tab" data-bs-target="#subEv3Insumos" id="btnSubEv3">
+              3. Insumos y Herramientas
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link disabled" data-bs-toggle="tab" data-bs-target="#subEv4Viaticos" id="btnSubEv4">
+              4. Viáticos y Aprobación
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link disabled" data-bs-toggle="tab" data-bs-target="#subEv5Gastos" id="btnSubEv5">
+              5. Gastos y Facturas
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link disabled" data-bs-toggle="tab" data-bs-target="#subEv6Cierre" id="btnSubEv6">
+              6. En Proceso y Cierre
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link disabled" data-bs-toggle="tab" data-bs-target="#subEv7Informe" id="btnSubEv7">
+              7. Informe Final (PDF)
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+
+          <!-- SUBPESTAÑA 1: SERVICIOS DE LIMPIEZA Y ASIGNACIÓN DE SUPERVISOR -->
+          <div class="tab-pane fade show active" id="subEv1Servicios">
+            <div class="card-modulo p-3">
+              <div class="fw-bold text-primary small mb-2">
+                📋 SERVICIOS CREADOS DESDE EL CRM — ASIGNE UN SUPERVISOR DE NÓMINA PARA HABILITAR EL PEDIDO
+              </div>
+              <div class="table-responsive">
+                <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+                  <thead>
+                    <tr>
+                      <th>CÓDIGO</th>
+                      <th>CLIENTE / PUNTO</th>
+                      <th>CIUDAD</th>
+                      <th>ESTADO EN FLUJO 360°</th>
+                      <th>SUPERVISOR ASIGNADO (NÓMINA)</th>
+                      <th>ACCIÓN</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyServiciosCRM"></tbody>
+                </table>
+              </div>
             </div>
           </div>
+
+          <!-- SUBPESTAÑA 2: PERSONAL Y QR DE ASISTENCIA -->
+          <div class="tab-pane fade" id="subEv2PersonalQR">
+            <div class="row g-3">
+              <div class="col-12 col-md-7">
+                <div class="card-modulo p-3 h-100">
+                  <div class="fw-bold text-primary small mb-2">
+                    👥 ASIGNAR PERSONAL DE NÓMINA AL SERVICIO EVENTUAL
+                  </div>
+                  <form id="formAsignarPersonalSrv" class="row g-2 align-items-end mb-3">
+                    <div class="col-8">
+                      <label class="form-label small fw-bold m-0">Seleccionar Auxiliar / Personal (Base Nómina) *</label>
+                      <select class="form-select form-select-sm fw-bold border-primary" id="selPersonalNominaSrv" required></select>
+                    </div>
+                    <div class="col-4">
+                      <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">➕ Agregar al Equipo</button>
+                    </div>
+                  </form>
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-sm m-0 table-asistencia">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>TRABAJADOR</th>
+                          <th>CARGO</th>
+                          <th>QUITAR</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tbodyPersonalAsignadoSrv"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-md-5">
+                <div class="card-modulo p-3 h-100 text-center">
+                  <div class="fw-bold text-dark small mb-2">📷 CÓDIGO QR DE ASISTENCIA DEL SERVICIO</div>
+                  <div class="small text-muted mb-2" id="lblQrEvCodigo">-</div>
+                  <img id="imgQrEvServicio" src="" alt="QR Servicio" class="border p-2 bg-white rounded shadow-sm mb-2" style="max-width: 200px;">
+                  <div class="d-flex justify-content-center gap-2 mt-2">
+                    <a id="linkAbrirQrEv" href="#" target="_blank" class="btn btn-sm btn-success fw-bold">📷 Abrir Reloj QR ↗</a>
+                    <a id="linkImprimirQrEv" href="#" target="_blank" class="btn btn-sm btn-outline-primary fw-bold">🖨️ Descargar QR</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBPESTAÑA 3: INSUMOS Y HERRAMIENTAS (DESDE INVENTARIOS) -->
+          <div class="tab-pane fade" id="subEv3Insumos">
+            <div class="card-modulo p-3 mb-3">
+              <div class="fw-bold text-primary small mb-2">
+                📦 SELECCIONAR INSUMOS, HERRAMIENTAS Y MAQUINARIA (DESDE BASE MAESTRA DE INVENTARIOS)
+              </div>
+              <form id="formPedirInsumoEv" class="row g-2 align-items-end">
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-bold m-0">Insumo / Herramienta / Maquinaria *</label>
+                  <select class="form-select form-select-sm fw-bold border-primary" id="selCatalogoInvSup" required></select>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">Categoría</label>
+                  <input type="text" class="form-control form-control-sm text-center fw-bold bg-light" id="txtCatInsumoSup" readonly>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold text-primary m-0">Cant. Requerida *</label>
+                  <input type="number" step="0.01" min="0.01" class="form-control form-control-sm fw-bold text-center border-primary" id="txtCantInsumoSup" value="1" required>
+                </div>
+                <div class="col-12 col-md-2">
+                  <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">➕ Añadir Pedido</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card-modulo p-3">
+              <div class="fw-bold text-dark small mb-2">LISTA DE INSUMOS Y MAQUINARIA SOLICITADOS PARA ESTE SERVICIO</div>
+              <div class="table-responsive">
+                <table class="table table-bordered table-sm m-0 table-asistencia">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>CATEGORÍA</th>
+                      <th>INSUMO / HERRAMIENTA / MAQUINARIA</th>
+                      <th>UNIDAD</th>
+                      <th>CANT. SOLICITADA</th>
+                      <th>ESTADO BODEGA</th>
+                      <th>QUITAR</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyInsumosPedidosEv"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBPESTAÑA 4: SOLICITUD DE VIÁTICOS + PDF + CORREO + APROBAR -->
+          <div class="tab-pane fade" id="subEv4Viaticos">
+            <div class="card-modulo p-3">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div class="fw-bold text-primary small">
+                  💵 SOLICITUD DE VIÁTICOS Y APROBACIÓN DEL PEDIDO (ENVÍA INSUMOS A BODEGA Y DINERO AL CRM)
+                </div>
+                <span class="badge bg-secondary" id="badgeEstadoPedidoEv">BORRADOR</span>
+              </div>
+
+              <form id="formViaticosEv" class="row g-2 align-items-end">
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">🍽️ Alimentación ($)</label>
+                  <input type="number" step="0.01" min="0" class="form-control form-control-sm fw-bold text-end inp-viatico" id="viaAlimentacion" value="0.00">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">⛽ Combustible ($)</label>
+                  <input type="number" step="0.01" min="0" class="form-control form-control-sm fw-bold text-end inp-viatico" id="viaCombustible" value="0.00">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">🥤 Bebidas ($)</label>
+                  <input type="number" step="0.01" min="0" class="form-control form-control-sm fw-bold text-end inp-viatico" id="viaBebidas" value="0.00">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">🚚 Logística ($)</label>
+                  <input type="number" step="0.01" min="0" class="form-control form-control-sm fw-bold text-end inp-viatico" id="viaLogistica" value="0.00">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">🧾 Gastos Varios ($)</label>
+                  <input type="number" step="0.01" min="0" class="form-control form-control-sm fw-bold text-end inp-viatico" id="viaVarios" value="0.00">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold text-success m-0">TOTAL VIÁTICOS ($)</label>
+                  <input type="text" class="form-control form-control-sm fw-bold text-end bg-light text-success border-success" id="viaTotal" value="0.00" readonly>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold m-0">Detalle de Gastos Varios (Peajes, compras de imprevisto, etc.)</label>
+                  <input type="text" class="form-control form-control-sm" id="viaDetalleVarios" placeholder="Ej: Peaje General Rumiñahui ida/vuelta + compra de guantes de repuesto">
+                </div>
+
+                <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+                  <button type="submit" class="btn btn-sm btn-primary fw-bold px-3">
+                    💾 1. Guardar Borrador Viáticos
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-dark fw-bold px-3" id="btnPdfConsolidadoEv">
+                    📄 2. Imprimir PDF (Insumos + Viáticos)
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary fw-bold px-3" id="btnCorreoConsolidadoEv">
+                    ✉️ 3. Enviar por Correo
+                  </button>
+                  <button type="button" class="btn btn-sm btn-success fw-bold px-4 ms-auto" id="btnAprobarPedidoEv">
+                    ✅ 4. APROBAR PEDIDO (Liberar a Bodega y CRM)
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- SUBPESTAÑA 5: REGISTRO DE GASTOS REALES Y FACTURAS -->
+          <div class="tab-pane fade" id="subEv5Gastos">
+            <div class="card-modulo p-3 mb-3">
+              <div class="fw-bold text-primary small mb-2">
+                🧾 REGISTRAR GASTOS REALES DEL SERVICIO CON FOTO DE FACTURA / COMPROBANTE
+              </div>
+              <form id="formGastoRealEv" class="row g-2 align-items-end">
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">Fecha *</label>
+                  <input type="date" class="form-control form-control-sm fw-bold" id="gasFecha" required>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">Categoría *</label>
+                  <select class="form-select form-select-sm fw-bold" id="gasCategoria">
+                    <option value="ALIMENTACION">ALIMENTACIÓN</option>
+                    <option value="COMBUSTIBLE">COMBUSTIBLE</option>
+                    <option value="BEBIDAS">BEBIDAS</option>
+                    <option value="LOGISTICA">LOGÍSTICA</option>
+                    <option value="GASTOS_VARIOS">GASTOS VARIOS</option>
+                  </select>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold m-0">N° Factura / Recibo</label>
+                  <input type="text" class="form-control form-control-sm" id="gasFactura" placeholder="001-001-000123">
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label small fw-bold text-danger m-0">Monto ($) *</label>
+                  <input type="number" step="0.01" min="0.01" class="form-control form-control-sm fw-bold text-end border-danger" id="gasMonto" required>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold m-0">Detalle del Gasto *</label>
+                  <input type="text" class="form-control form-control-sm" id="gasDetalle" placeholder="Ej: Almuerzos para 4 auxiliares" required>
+                </div>
+                <div class="col-12 col-md-8">
+                  <label class="form-label small fw-bold m-0">Foto de la Factura / Comprobante</label>
+                  <input type="file" class="form-control form-control-sm" id="gasFotoInput" accept="image/*">
+                </div>
+                <div class="col-12 col-md-4">
+                  <button type="submit" class="btn btn-sm btn-danger w-100 fw-bold py-2" id="btnGuardarGastoEv">
+                    💾 Registrar Gasto y Subir Foto
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card-modulo p-3">
+              <div class="fw-bold text-dark small mb-2">HISTORIAL DE GASTOS REALES CARGADOS AL SERVICIO</div>
+              <div class="table-responsive">
+                <table class="table table-bordered table-sm m-0 table-asistencia">
+                  <thead>
+                    <tr>
+                      <th>FECHA</th>
+                      <th>CATEGORÍA</th>
+                      <th>N° FACTURA</th>
+                      <th>DETALLE</th>
+                      <th>MONTO ($)</th>
+                      <th>FOTO</th>
+                      <th>ELIMINAR</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyGastosEv"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBPESTAÑA 6: EN PROCESO Y CIERRE DE CAMPO (RECIBÍ CONFORME) -->
+          <div class="tab-pane fade" id="subEv6Cierre">
+            <div class="card-modulo p-3">
+              <div id="alertaEsperaBodega" class="alert alert-warning small fw-bold mb-3" style="display: none;">
+                ⏳ Este servicio aún no ha sido marcado como ENTREGADO por Bodega. Podrá cerrarlo en campo una vez Bodega entregue los insumos.
+              </div>
+              <div class="fw-bold text-success small mb-2">
+                ✅ CIERRE OPERATIVO EN CAMPO — SUBIR FOTO DEL "RECIBÍ CONFORME" FÍSICO
+              </div>
+              <form id="formCierreCampoEv" class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold m-0">Nombre de Quien Recibe el Servicio *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="cieNombreRecibe" placeholder="EJ: ING. CARLOS PÉREZ" required>
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small fw-bold m-0">Cédula / Cargo Quien Recibe</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase" id="cieCedulaRecibe" placeholder="C.I. o Cargo">
+                </div>
+                <div class="col-6 col-md-5">
+                  <label class="form-label small fw-bold text-primary m-0">Foto del "Recibí Conforme" Físico Firmado *</label>
+                  <input type="file" class="form-control form-control-sm border-primary" id="cieFotoRecibi" accept="image/*">
+                </div>
+                <div class="col-12 mt-2">
+                  <button type="submit" class="btn btn-sm btn-success fw-bold px-4 py-2" id="btnCulminarCampoEv">
+                    🏁 DAR POR CULMINADO EL SERVICIO EN CAMPO
+                  </button>
+                </div>
+              </form>
+
+              <div id="previewRecibiConforme" class="mt-3 p-2 border rounded bg-light" style="display: none;">
+                <div class="small fw-bold text-success mb-1">✅ Recibí Conforme Registrado:</div>
+                <img id="imgRecibiConformeGuardado" src="" class="img-fluid rounded border" style="max-height: 220px;">
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBPESTAÑA 7: INFORME FINAL DEL SERVICIO (MÁX. 6 FOTOS + PDF) -->
+          <div class="tab-pane fade" id="subEv7Informe">
+            <div class="card-modulo p-3">
+              <div class="fw-bold text-primary small mb-2">
+                📸 INFORME FINAL DEL SERVICIO (MÁXIMO 6 FOTOS DE EVIDENCIA + PDF)
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-12 col-md-8">
+                  <label class="form-label small fw-bold m-0">Observaciones / Resumen Técnico del Trabajo Realizado</label>
+                  <textarea class="form-control form-control-sm" id="infObservaciones" rows="3" placeholder="Detalle de áreas intervenidas, resultados obtenidos y recomendaciones..."></textarea>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold text-primary m-0">Añadir Fotos (Máximo 6 fotos)</label>
+                  <input type="file" class="form-control form-control-sm border-primary mb-2" id="infInputFotos" accept="image/*" multiple>
+                  <div class="small text-muted" id="lblContadorFotosInf">0 / 6 fotos cargadas</div>
+                </div>
+              </div>
+
+              <div class="row g-2 mb-3" id="galeriaFotosInforme"></div>
+
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-primary fw-bold px-4" id="btnGuardarInformeEv">
+                  💾 Guardar Informe Final
+                </button>
+                <button type="button" class="btn btn-sm btn-dark fw-bold px-4" id="btnGenerarPdfInformeEv">
+                  📄 Generar Informe Final en PDF
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      <!-- 3. REGISTRAR PERMISO MÉDICO, CALAMIDAD O CAMBIO DE TURNO CON FOTO (CONECTA A PESTAÑAS 2, 3 Y 6) -->
-      <div class="col-12 col-md-6">
-        <div class="card-modulo p-3 h-100">
-          <div class="fw-bold text-danger small mb-2">
-            📋 3. REPORTAR PERMISO MÉDICO, CALAMIDAD O CAMBIO DE TURNO (CON EVIDENCIA FOTOGRÁFICA)
-          </div>
-          <form id="formSupNovedad" class="row g-2">
-            <div class="col-12">
-              <label class="form-label small fw-bold m-0">Tipo de Novedad *</label>
-              <select class="form-select form-select-sm fw-bold" id="supNovTipo" required>
-                <option value="PERMISO_MEDICO">Permiso Médico (Certificado IESS / Salud)</option>
-                <option value="CALAMIDAD">Calamidad Doméstica</option>
-                <option value="CAMBIO_TURNO">Cambio de Turno / Cobertura en Punto</option>
-              </select>
+      <!-- ================================================================= -->
+      <!-- PESTAÑA PRINCIPAL 2: CONTRATOS FIJOS (TU PANEL ACTUAL INTACTO)    -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tabMainContratosFijos">
+        <!-- Filtro de Contrato y Fecha Operativa -->
+        <div class="card-modulo p-3">
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold text-primary m-0">🏢 Contrato Fijo / Sede Supervisada:</label>
+              <select class="form-select form-select-sm fw-bold border-primary" id="supContrato"></select>
             </div>
-            <div class="col-6">
-              <label class="form-label small fw-bold text-danger m-0">Auxiliar Ausente / Titular *</label>
-              <select class="form-select form-select-sm fw-bold border-danger" id="supNovTitular" required></select>
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold text-primary m-0">📅 Fecha Operativa:</label>
+              <input type="date" class="form-control form-control-sm fw-bold border-primary" id="supFecha">
             </div>
-            <div class="col-6">
-              <label class="form-label small fw-bold text-success m-0">Auxiliar que Cubre (Verde) *</label>
-              <select class="form-select form-select-sm fw-bold border-success" id="supNovReemplazo">
-                <option value="">-- Sin reemplazo --</option>
-              </select>
-            </div>
-            <div class="col-12">
-              <label class="form-label small fw-bold m-0">Observación / Detalle del Cambio *</label>
-              <input type="text" class="form-control form-control-sm" id="supNovDesc" placeholder="Ej: Juan sale a permiso médico, Luis cubre su turno hasta las 19:00" required>
-            </div>
-            <div class="col-12">
-              <label class="form-label small fw-bold m-0">Subir Foto de Evidencia (Certificado / Respaldo)</label>
-              <input type="file" class="form-control form-control-sm" id="supNovFoto" accept="image/*">
-            </div>
-            <div class="col-12 mt-2">
-              <button type="submit" class="btn btn-sm btn-dark w-100 fw-bold py-2">
-                🔔 Enviar Notificación a Nómina y Actualizar Calendario
+            <div class="col-12 col-md-2">
+              <button type="button" class="btn btn-primary btn-sm w-100 fw-bold" id="btnRefrescarSupervision">
+                🔄 Actualizar
               </button>
             </div>
-          </form>
+          </div>
+        </div>
+
+        <!-- 1. MONITOR SEMÁFORO DE ASISTENCIA EN VIVO -->
+        <div class="card-modulo p-3">
+          <div class="fw-bold text-dark small mb-2">
+            🚦 1. MONITOR EN VIVO DE ASISTENCIA DEL PERSONAL (ROJO = AÚN NO TIMBRA / VERDE = YA TIMBRÓ CON FOTO TIMESTAMP)
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>AUXILIAR</th>
+                  <th>TURNO EN CALENDARIO</th>
+                  <th>HORARIO PREVISTO</th>
+                  <th>SEMÁFORO EN VIVO</th>
+                  <th>HORA ENTRADA</th>
+                  <th>HORA SALIDA</th>
+                  <th>FOTO TIMESTAMP</th>
+                </tr>
+              </thead>
+              <tbody id="tbodySemaforoSupervision"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <!-- 2. REASIGNAR AUXILIAR A SERVICIO MANUAL -->
+          <div class="col-12 col-md-6">
+            <div class="card-modulo p-3 h-100">
+              <div class="fw-bold text-primary small mb-2">
+                🚀 2. REASIGNAR AUXILIAR DE CONTRATO FIJO A SERVICIO / COBERTURA
+              </div>
+              <form id="formSupCrearServicio" class="row g-2">
+                <div class="col-4">
+                  <label class="form-label small fw-bold m-0">Código *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="supSrvCodigo" placeholder="SRV-CLE-001" required>
+                </div>
+                <div class="col-8">
+                  <label class="form-label small fw-bold m-0">Nombre del Servicio / Fin de Obra *</label>
+                  <input type="text" class="form-control form-control-sm text-uppercase" id="supSrvNombre" placeholder="FIN DE OBRA" required>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold text-info m-0">Auxiliar que sale de su punto (CELESTE en Calendario) *</label>
+                  <select class="form-select form-select-sm fw-bold border-info" id="supSrvAuxiliarSale" required></select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold text-success m-0">Compañero que cubre en el punto (VERDE)</label>
+                  <select class="form-select form-select-sm fw-bold border-success" id="supSrvAuxiliarCubre">
+                    <option value="">-- Ninguno / No requiere cobertura --</option>
+                  </select>
+                </div>
+                <div class="col-12 mt-2">
+                  <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-2">
+                    🚀 Actualizar Calendario de Nómina y Generar QR
+                  </button>
+                </div>
+              </form>
+
+              <div id="cajaQRSupServicio" class="text-center p-2 mt-3 border rounded bg-light" style="display: none;">
+                <div class="fw-bold text-primary small" id="lblQRSupTitulo">-</div>
+                <img id="imgQRSupServicio" src="" class="my-2 border p-1 bg-white rounded" style="max-width: 150px;">
+                <div>
+                  <a id="linkAbrirQRSupServicio" href="#" target="_blank" class="btn btn-sm btn-success fw-bold">📷 Abrir Reloj QR ↗</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. REGISTRAR PERMISO MÉDICO, CALAMIDAD O CAMBIO DE TURNO -->
+          <div class="col-12 col-md-6">
+            <div class="card-modulo p-3 h-100">
+              <div class="fw-bold text-danger small mb-2">
+                📋 3. REPORTAR PERMISO MÉDICO, CALAMIDAD O CAMBIO DE TURNO (CON EVIDENCIA FOTOGRÁFICA)
+              </div>
+              <form id="formSupNovedad" class="row g-2">
+                <div class="col-12">
+                  <label class="form-label small fw-bold m-0">Tipo de Novedad *</label>
+                  <select class="form-select form-select-sm fw-bold" id="supNovTipo" required>
+                    <option value="PERMISO_MEDICO">Permiso Médico (Certificado IESS / Salud)</option>
+                    <option value="CALAMIDAD">Calamidad Doméstica</option>
+                    <option value="CAMBIO_TURNO">Cambio de Turno / Cobertura en Punto</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-bold text-danger m-0">Auxiliar Ausente / Titular *</label>
+                  <select class="form-select form-select-sm fw-bold border-danger" id="supNovTitular" required></select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-bold text-success m-0">Auxiliar que Cubre (Verde) *</label>
+                  <select class="form-select form-select-sm fw-bold border-success" id="supNovReemplazo">
+                    <option value="">-- Sin reemplazo --</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold m-0">Observación / Detalle del Cambio *</label>
+                  <input type="text" class="form-control form-control-sm" id="supNovDesc" placeholder="Ej: Juan sale a permiso médico, Luis cubre su turno hasta las 19:00" required>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold m-0">Subir Foto de Evidencia (Certificado / Respaldo)</label>
+                  <input type="file" class="form-control form-control-sm" id="supNovFoto" accept="image/*">
+                </div>
+                <div class="col-12 mt-2">
+                  <button type="submit" class="btn btn-sm btn-dark w-100 fw-bold py-2">
+                    🔔 Enviar Notificación a Nómina y Actualizar Calendario
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
+    </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="module" src="../js/supervision.ctrl.js"></script>
 </body>

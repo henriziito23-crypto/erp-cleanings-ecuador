@@ -15,8 +15,6 @@ import {
 } from "./router.js";
 import {
   inicializarMonitorOffline,
-  sincronizarCacheUsuariosPin,
-  buscarUsuarioPorPinOffline,
   guardarCacheContratos,
   obtenerCacheContratos,
   guardarCacheCatalogoAreas,
@@ -30,7 +28,6 @@ let cacheUsuariosContratoActual = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
   inicializarMonitorOffline();
-  sincronizarCacheUsuariosPin();
   parametrosQR = obtenerParametrosURL();
 
   if (parametrosQR.piso && parametrosQR.area) {
@@ -63,9 +60,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     mostrarHubPrincipalERP();
   });
 
-  // Otros módulos del ERP
+  // Otros módulos del ERP (Exclusivos de ROL CONTROL)
   document.querySelectorAll(".module-card[data-modulo-erp]").forEach(card => {
     card.addEventListener("click", () => {
+      const sesion = obtenerSesionActiva();
+      if (!sesion || sesion.rol !== "CONTROL") {
+        alert("⛔ Acceso exclusivo para el nivel de autorización CONTROL TOTAL.");
+        return;
+      }
+
       const mod = card.getAttribute("data-modulo-erp");
       if (mod === "asistencia") {
         window.location.href = "./modulo-asistencia/views/asistencia.html";
@@ -73,6 +76,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       if (mod === "supervision") {
         window.location.href = "./modulo-supervision/views/supervision.html";
+        return;
+      }
+      if (mod === "crm") {
+        window.location.href = "./modulo-crm/views/crm.html";
+        return;
+      }
+      if (mod === "inventarios") {
+        window.location.href = "./modulo-inventarios/views/inventarios.html";
         return;
       }
       const nombres = {
@@ -130,40 +141,31 @@ async function validarIngresoPIN(e) {
 
   if (!pin) return;
 
+  if (!navigator.onLine) {
+    err.innerText = "📡 Se requiere conexión a internet para validar sus credenciales en el servidor.";
+    err.style.display = "block";
+    return;
+  }
+
   btn.disabled = true;
   btn.innerText = "Verificando credenciales en el ERP...";
   err.style.display = "none";
 
   let usuario = null;
-  let validadoOffline = false;
 
   try {
-    if (navigator.onLine) {
-      const { data, error } = await supabase
-        .from("trazabilidad_usuarios")
-        .select("id, codigo_pin, nombre_completo, rol, cargo_etiqueta, activo")
-        .eq("codigo_pin", pin)
-        .eq("activo", true)
-        .maybeSingle();
+    const { data, error } = await supabase.rpc("login_por_pin", {
+      pin_entrada: pin
+    });
 
-      if (error) throw error;
-      usuario = data;
-      sincronizarCacheUsuariosPin();
-    } else {
-      usuario = buscarUsuarioPorPinOffline(pin);
-      validadoOffline = true;
-    }
+    if (error) throw error;
+    usuario = Array.isArray(data) && data.length > 0 ? data[0] : null;
   } catch (errConexion) {
-    usuario = buscarUsuarioPorPinOffline(pin);
-    validadoOffline = true;
-
-    if (!usuario) {
-      btn.disabled = false;
-      btn.innerText = "🔐 Validar Acceso al ERP";
-      err.innerText = "📡 Sin conexión a internet y este dispositivo aún no tiene descargado el padrón de PINs. Conéctese una vez a la red para habilitar el modo offline.";
-      err.style.display = "block";
-      return;
-    }
+    btn.disabled = false;
+    btn.innerText = "🔐 Validar Acceso al ERP";
+    err.innerText = "Error de conexión con el servidor al validar credenciales.";
+    err.style.display = "block";
+    return;
   }
 
   if (!usuario) {
@@ -203,26 +205,24 @@ async function validarIngresoPIN(e) {
       return;
     }
 
-    if (!validadoOffline && navigator.onLine) {
-      const contratosAsignados = await obtenerContratosAutorizados(usuario.id, rol);
-      const codigosPermitidos = contratosAsignados.map(c => c.codigo_contrato.toUpperCase());
+    const contratosAsignados = await obtenerContratosAutorizados(usuario.id, rol);
+    const codigosPermitidos = contratosAsignados.map(c => c.codigo_contrato.toUpperCase());
 
-      if (codigosPermitidos.length === 0) {
-        btn.disabled = false;
-        btn.innerText = "🔐 Validar Acceso al ERP";
-        err.innerText = "⛔ Su usuario no tiene ningún contrato asignado en el ERP.";
-        err.style.display = "block";
-        return;
-      }
+    if (codigosPermitidos.length === 0) {
+      btn.disabled = false;
+      btn.innerText = "🔐 Validar Acceso al ERP";
+      err.innerText = "⛔ Su usuario no tiene ningún contrato asignado en el ERP.";
+      err.style.display = "block";
+      return;
+    }
 
-      if (parametrosQR.contrato && !codigosPermitidos.includes(parametrosQR.contrato.toUpperCase())) {
-        btn.disabled = false;
-        btn.innerText = "🔐 Validar Acceso al ERP";
-        err.innerText = `⛔ ACCESO DENEGADO AL CONTRATO [${parametrosQR.contrato}]:\nSu rol (${usuario.cargo_etiqueta || "AUDITOR"}) solo tiene autorización sobre: ${codigosPermitidos.join(", ")}.`;
-        err.style.display = "block";
-        input.value = "";
-        return;
-      }
+    if (parametrosQR.contrato && !codigosPermitidos.includes(parametrosQR.contrato.toUpperCase())) {
+      btn.disabled = false;
+      btn.innerText = "🔐 Validar Acceso al ERP";
+      err.innerText = `⛔ ACCESO DENEGADO AL CONTRATO [${parametrosQR.contrato}]:\nSu rol (${usuario.cargo_etiqueta || "AUDITOR"}) solo tiene autorización sobre: ${codigosPermitidos.join(", ")}.`;
+      err.style.display = "block";
+      input.value = "";
+      return;
     }
   }
 
@@ -668,18 +668,11 @@ async function cargarUsuariosRegistradosEnContrato(contratoId, nombreCliente) {
 
   const idsPuente = (puente || []).map(p => p.supervisor_id);
 
-  let query = supabase
-    .from("trazabilidad_usuarios")
-    .select("*")
-    .eq("activo", true);
+  const { data: usuariosContrato, error } = await supabase.rpc("listar_usuarios_contrato", {
+    p_contrato_id: contratoId,
+    p_ids_extra: idsPuente
+  });
 
-  if (idsPuente.length > 0) {
-    query = query.or(`contrato_base_id.eq.${contratoId},id.in.(${idsPuente.join(",")})`);
-  } else {
-    query = query.eq("contrato_base_id", contratoId);
-  }
-
-  const { data: usuariosContrato, error } = await query.order("nombre_completo", { ascending: true });
   cacheUsuariosContratoActual = usuariosContrato || [];
 
   const selUser = document.getElementById("admSelUsuarioRegistrado");
@@ -692,7 +685,7 @@ async function cargarUsuariosRegistradosEnContrato(contratoId, nombreCliente) {
     cacheUsuariosContratoActual.forEach(u => {
       const opt = document.createElement("option");
       opt.value = u.id;
-      opt.textContent = `${u.nombre_completo} (PIN actual: ${u.codigo_pin || "S/N"} | Rol: ${u.rol})`;
+      opt.textContent = `${u.nombre_completo} (Rol: ${u.rol})`;
       selUser.appendChild(opt);
     });
   }
@@ -721,7 +714,7 @@ async function cargarUsuariosRegistradosEnContrato(contratoId, nombreCliente) {
       <td class="fw-bold text-dark">${u.nombre_completo}</td>
       <td>${u.cargo_etiqueta || "-"}</td>
       <td class="text-center"><span class="badge ${colorRol}">${u.rol}</span></td>
-      <td class="text-center fw-bold text-primary">${u.codigo_pin || "-"}</td>
+      <td class="text-center fw-bold text-muted">•••• (Cifrado)</td>
       <td class="text-center">
         <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold me-1" data-edit-user="${u.id}">
           ✏️ PIN / Rol
@@ -750,13 +743,12 @@ function alSeleccionarUsuarioDelContrato() {
   const userId = document.getElementById("admSelUsuarioRegistrado").value;
   const usuario = cacheUsuariosContratoActual.find(u => u.id === userId);
 
+  document.getElementById("admPinUsuario").value = "";
   if (!usuario) {
-    document.getElementById("admPinUsuario").value = "";
     document.getElementById("admEtiquetaUsuario").value = "";
     return;
   }
 
-  document.getElementById("admPinUsuario").value = usuario.codigo_pin || "";
   document.getElementById("admRolPermiso").value = homologarRol(usuario.rol);
   document.getElementById("admEtiquetaUsuario").value = usuario.cargo_etiqueta || usuario.rol;
 }
@@ -777,15 +769,13 @@ async function guardarRolYPinDeUsuario(e) {
   const rol = document.getElementById("admRolPermiso").value;
   const etiqueta = document.getElementById("admEtiquetaUsuario").value.trim().toUpperCase();
 
-  const { error } = await supabase
-    .from("trazabilidad_usuarios")
-    .update({
-      codigo_pin: pin,
-      rol: rol,
-      cargo_etiqueta: etiqueta,
-      contrato_base_id: contratoId
-    })
-    .eq("id", userId);
+  const { error } = await supabase.rpc("actualizar_pin_usuario", {
+    p_usuario_id: userId,
+    p_nuevo_pin: pin,
+    p_rol: rol,
+    p_cargo_etiqueta: etiqueta,
+    p_contrato_id: contratoId
+  });
 
   if (error) {
     alert("Error al actualizar PIN/Rol del usuario: " + error.message);
@@ -798,8 +788,8 @@ async function guardarRolYPinDeUsuario(e) {
       .upsert([{ contrato_id: contratoId, supervisor_id: userId }], { onConflict: "contrato_id,supervisor_id" });
   }
 
-  sincronizarCacheUsuariosPin();
-  mostrarFeedbackAdmin(`✓ PIN (${pin}) y Rol (${rol}) actualizados correctamente.`);
+  mostrarFeedbackAdmin(`✓ Credenciales y Rol (${rol}) actualizados correctamente.`);
+  document.getElementById("admPinUsuario").value = "";
   await cargarUsuariosRegistradosEnContrato(contratoId, optContrato.dataset.nombreCliente);
 }
 
@@ -813,11 +803,10 @@ async function desvincularUsuarioDelContrato(usuario, contratoId) {
     .eq("contrato_id", contratoId)
     .eq("supervisor_id", usuario.id);
 
-  await supabase
-    .from("trazabilidad_usuarios")
-    .update({ contrato_base_id: null })
-    .eq("id", usuario.id)
-    .eq("contrato_base_id", contratoId);
+  await supabase.rpc("desvincular_contrato_base_usuario", {
+    p_usuario_id: usuario.id,
+    p_contrato_id: contratoId
+  });
 
   mostrarFeedbackAdmin(`🗑️ Usuario ${usuario.nombre_completo} desvinculado del contrato.`);
   const sel = document.getElementById("admSelContratoMaestro");
@@ -1175,12 +1164,18 @@ document.querySelectorAll(".btnLimpiarBD").forEach(btn => {
       }
       if (target === "usuarios" || target === "todo") {
         await supabase.from("trazabilidad_contrato_supervisores").delete().neq("contrato_id", dummyUUID);
-        const sesion = obtenerSesionActiva();
-        await supabase.from("trazabilidad_usuarios").delete().neq("id", sesion.id);
       }
       if (target === "todo") {
         await supabase.from("trazabilidad_areas").delete().neq("id", dummyUUID);
         await supabase.from("trazabilidad_contratos").delete().neq("id", dummyUUID);
+        await supabase.from("inventarios_catalogo").delete().neq("id", dummyUUID);
+        await supabase.from("crm_clientes").delete().neq("id", dummyUUID);
+      }
+      if (target === "crm") {
+        await supabase.from("crm_servicios_bodega").delete().neq("id", dummyUUID);
+        await supabase.from("crm_servicios_gastos").delete().neq("id", dummyUUID);
+        await supabase.from("crm_servicios").delete().neq("id", dummyUUID);
+        await supabase.from("crm_cotizaciones").delete().neq("id", dummyUUID);
       }
 
       alert("✅ Limpieza de Base de Datos ejecutada con éxito.");
@@ -1193,3 +1188,120 @@ document.querySelectorAll(".btnLimpiarBD").forEach(btn => {
     }
   });
 });
+
+// =====================================================================
+// SISTEMA DE BACKUPS MANUAL Y AUTOMÁTICO TRIMESTRAL (CADA 90 DÍAS)
+// =====================================================================
+const KEY_CONFIG_BACKUP = "erp_cleanings_backup_config_v1";
+
+function inicializarMonitorBackupTrimestral() {
+  const raw = localStorage.getItem(KEY_CONFIG_BACKUP);
+  const conf = raw ? JSON.parse(raw) : { auto: true, ultimoTimestamp: null };
+
+  const chkAuto = document.getElementById("chkBackupAutoTrimestral");
+  const lblUlt = document.getElementById("lblUltimoBackupFecha");
+  const lblProx = document.getElementById("lblProximoBackupFecha");
+
+  if (chkAuto) {
+    chkAuto.checked = conf.auto !== false;
+    chkAuto.addEventListener("change", () => {
+      conf.auto = chkAuto.checked;
+      localStorage.setItem(KEY_CONFIG_BACKUP, JSON.stringify(conf));
+    });
+  }
+
+  if (conf.ultimoTimestamp) {
+    const fechaUlt = new Date(conf.ultimoTimestamp);
+    const fechaProx = new Date(conf.ultimoTimestamp + 90 * 24 * 60 * 60 * 1000);
+    if (lblUlt) lblUlt.innerText = fechaUlt.toLocaleDateString("es-EC");
+    if (lblProx) lblProx.innerText = fechaProx.toLocaleDateString("es-EC");
+
+    if (conf.auto && Date.now() >= fechaProx.getTime() && navigator.onLine) {
+      ejecutarRespaldoERP("CRM_SERVICIOS", false, true);
+    }
+  }
+}
+
+document.getElementById("btnDescargarBackupManual")?.addEventListener("click", async () => {
+  const alcance = document.getElementById("selAlcanceBackup").value;
+  const purgar = document.getElementById("chkPurgarAntiguosBackup").checked;
+  await ejecutarRespaldoERP(alcance, purgar, false);
+});
+
+async function ejecutarRespaldoERP(alcance, purgarMasDe90Dias, esAutomatico) {
+  const btn = document.getElementById("btnDescargarBackupManual");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Empaquetando base de datos...";
+  }
+
+  try {
+    const [cot, srv, gas, bod] = await Promise.all([
+      supabase.from("crm_cotizaciones").select("*"),
+      supabase.from("crm_servicios").select("*"),
+      supabase.from("crm_servicios_gastos").select("*"),
+      supabase.from("crm_servicios_bodega").select("*")
+    ]);
+
+    const paquete = {
+      generado_en: new Date().toISOString(),
+      tipo: esAutomatico ? "AUTOMATICO_TRIMESTRAL" : "MANUAL",
+      alcance,
+      crm_cotizaciones: cot.data || [],
+      crm_servicios: srv.data || [],
+      crm_servicios_gastos: gas.data || [],
+      crm_servicios_bodega: bod.data || []
+    };
+
+    if (alcance === "COMPLETO_ERP") {
+      const [con, lim, atp] = await Promise.all([
+        supabase.from("trazabilidad_contratos").select("*"),
+        supabase.from("trazabilidad_registros_limpieza").select("*"),
+        supabase.from("trazabilidad_registros_atp").select("*")
+      ]);
+      paquete.trazabilidad_contratos = con.data || [];
+      paquete.trazabilidad_registros_limpieza = lim.data || [];
+      paquete.trazabilidad_registros_atp = atp.data || [];
+    }
+
+    const fechaHoy = new Date().toISOString().split("T")[0];
+    const blob = new Blob([JSON.stringify(paquete, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Backup_ERP_Cleanings_${alcance}_${fechaHoy}.json`;
+    a.click();
+
+    if (purgarMasDe90Dias) {
+      const hace90Dias = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from("crm_cotizaciones")
+        .delete()
+        .eq("estado", "REALIZADO")
+        .lt("creado_en", hace90Dias);
+    }
+
+    const sesion = obtenerSesionActiva();
+    await supabase.from("crm_backups_trimestrales").insert([{
+      periodo: fechaHoy,
+      cantidad_servicios_respaldados: (srv.data || []).length,
+      usuario_ejecutor: sesion ? sesion.nombre : "SISTEMA_AUTO"
+    }]);
+
+    localStorage.setItem(KEY_CONFIG_BACKUP, JSON.stringify({ auto: true, ultimoTimestamp: Date.now() }));
+    inicializarMonitorBackupTrimestral();
+
+    if (!esAutomatico) {
+      alert("✅ Respaldo descargado correctamente en su computadora.");
+    }
+  } catch (err) {
+    if (!esAutomatico) alert("Error al generar backup: " + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "💾 Descargar Backup Ahora (.JSON + .XLSX)";
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded", inicializarMonitorBackupTrimestral);

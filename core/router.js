@@ -28,7 +28,6 @@ export function obtenerParametrosURL() {
 export function guardarSesionActiva(datosUsuario, parametrosQR) {
   const sesion = {
     id: datosUsuario.id,
-    codigo: datosUsuario.codigo_pin,
     nombre: datosUsuario.nombre_completo,
     rol: homologarRol(datosUsuario.rol),
     cargoEtiqueta: datosUsuario.cargo_etiqueta || datosUsuario.rol,
@@ -120,15 +119,13 @@ export async function obtenerContratosAutorizados(usuarioId, rol) {
     .select("contrato_id")
     .eq("supervisor_id", usuarioId);
 
-  const { data: datosUser } = await supabase
-    .from("trazabilidad_usuarios")
-    .select("contrato_base_id")
-    .eq("id", usuarioId)
-    .maybeSingle();
+  const { data: contratoBaseId } = await supabase.rpc("obtener_contrato_base_usuario", {
+    p_usuario_id: usuarioId
+  });
 
   const idsPermitidos = new Set((asignaciones || []).map(a => a.contrato_id));
-  if (datosUser && datosUser.contrato_base_id) {
-    idsPermitidos.add(datosUser.contrato_base_id);
+  if (contratoBaseId) {
+    idsPermitidos.add(contratoBaseId);
   }
 
   const listaIds = Array.from(idsPermitidos);

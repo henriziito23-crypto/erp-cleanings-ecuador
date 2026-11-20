@@ -199,20 +199,19 @@ async function validarEstadoAsistenciaAuxiliar() {
   btnValidar.disabled = true;
   btnValidar.innerText = "🔍 Buscando...";
 
-  try {
-    const { data: user } = await supabase
-      .from("trazabilidad_usuarios")
-      .select("*")
-      .eq("codigo_pin", pin)
-      .eq("activo", true)
-      .maybeSingle();
+try {
+    const { data: rpcUsers, error: errRpc } = await supabase.rpc("login_por_pin", {
+      pin_entrada: pin
+    });
+
+    if (errRpc) throw errRpc;
+    const user = Array.isArray(rpcUsers) && rpcUsers.length > 0 ? rpcUsers[0] : null;
 
     if (!user) {
       alert("⛔ PIN incorrecto o usuario inactivo.");
       resetFormularioTimbrado();
       return;
     }
-
     usuarioValidado = user;
     document.getElementById("lblNombreAuxValidado").innerText = user.nombre_completo;
     document.getElementById("cajaBotonesEvento").style.display = "block";

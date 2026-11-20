@@ -1,18 +1,22 @@
 // =====================================================================
 // ARCHIVO: core/offlineSync.js
-// Motor Offline-First: Cola de Sincronización Local, Subida Diferida de
-// Fotografías ATP y Caché de Catálogos (Contratos / Pisos / Áreas)
+// Motor Offline-First EXCLUSIVO para el Módulo de Registro Diario de Limpieza
 // =====================================================================
 import { supabase } from "./supabaseClient.js";
 
-const KEY_COLA_OFFLINE = "erp_cleanings_cola_offline_v1";
+const KEY_COLA_OFFLINE = "erp_cleanings_cola_registro_v1";
 const KEY_CACHE_CONTRATOS = "erp_cleanings_cache_contratos_v1";
 const KEY_CACHE_CATALOGO_PREFIJO = "erp_cleanings_cache_areas_";
 
 let sincronizandoActualmente = false;
 
+// Purgar cualquier caché legado de PINs en texto plano del navegador
+try {
+  localStorage.removeItem("erp_cleanings_cache_pins_v1");
+} catch (e) {}
+
 /**
- * 1. GESTIÓN DE CACHÉ LOCAL (Para que los selectores funcionen sin señal)
+ * 1. CACHÉ LOCAL DE CATÁLOGOS (Para selectores de Registro sin señal)
  */
 export function guardarCacheContratos(listaContratos) {
   try {
@@ -53,7 +57,7 @@ export function obtenerCacheCatalogoAreas(codContrato) {
 }
 
 /**
- * 2. GESTIÓN DE LA COLA DE REGISTROS PENDIENTES
+ * 2. COLA DE REGISTROS DE LIMPIEZA PENDIENTES
  */
 export function obtenerColaOffline() {
   try {
@@ -75,7 +79,7 @@ export function encolarOperacionOffline(tabla, payload, descripcionResumen) {
     id_temporal: "OFF_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
     tabla,
     payload,
-    descripcion: descripcionResumen || "Registro operativo",
+    descripcion: descripcionResumen || "Registro de limpieza",
     creado_en: new Date().toISOString()
   };
   cola.push(nuevoItem);
@@ -84,24 +88,15 @@ export function encolarOperacionOffline(tabla, payload, descripcionResumen) {
 }
 
 /**
- * Convierte un DataURL (Base64) en Blob para subirlo a Supabase Storage al reconectar
- */
-function dataURLABlob(dataURL) {
-  const partes = dataURL.split(",");
-  const mime = partes[0].match(/:(.*?);/)[1];
-  const binario = atob(partes[1]);
-  let n = binario.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = binario.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
-}
-
-/**
- * 3. ENVÍO INTELIGENTE (Intenta subir a Supabase; si falla la red, encola localmente)
+ * 3. ENVÍO EXCLUSIVO CON RESPALDO OFFLINE PARA REGISTRO DE LIMPIEZA
  */
 export async function insertarConRespaldoOffline(tabla, payload, descripcionResumen) {
+  if (tabla !== "trazabilidad_registros_limpieza") {
+    const { error } = await supabase.from(tabla).insert([payload]);
+    if (error) throw error;
+    return { modoOffline: false, enviado: true };
+  }
+
   if (!navigator.onLine) {
     encolarOperacionOffline(tabla, payload, descripcionResumen);
     return { modoOffline: true, enviado: false };
@@ -110,8 +105,6 @@ export async function insertarConRespaldoOffline(tabla, payload, descripcionResu
   try {
     const payloadLimpio = { ...payload };
     delete payloadLimpio._codigo_contrato_qr;
-    delete payloadLimpio._foto_base64_offline;
-    delete payloadLimpio._foto_path_offline;
 
     const { error } = await supabase.from(tabla).insert([payloadLimpio]);
     if (error) {
@@ -142,7 +135,7 @@ export async function insertarConRespaldoOffline(tabla, payload, descripcionResu
 }
 
 /**
- * 4. SINCRONIZACIÓN AUTOMÁTICA EN SEGUNDO PLANO (Limpieza + Fotos y Registros ATP)
+ * 4. SINCRONIZACIÓN AUTOMÁTICA EN SEGUNDO PLANO (Solo Registros de Limpieza)
  */
 export async function sincronizarColaPendiente() {
   if (sincronizandoActualmente || !navigator.onLine) {
@@ -165,14 +158,8 @@ export async function sincronizarColaPendiente() {
     try {
       const datosInsertar = { ...item.payload };
       const codigoContratoAux = datosInsertar._codigo_contrato_qr;
-      const fotoBase64Aux = datosInsertar._foto_base64_offline;
-      const fotoPathAux = datosInsertar._foto_path_offline;
-
       delete datosInsertar._codigo_contrato_qr;
-      delete datosInsertar._foto_base64_offline;
-      delete datosInsertar._foto_path_offline;
 
-      // A. Resolver UUID del contrato si se guardó 100% sin señal
       if (!datosInsertar.contrato_id && codigoContratoAux) {
         const { data: cData } = await supabase
           .from("trazabilidad_contratos")
@@ -184,7 +171,6 @@ export async function sincronizarColaPendiente() {
         }
       }
 
-      // B. Resolver UUID del área si faltaba
       if (!datosInsertar.area_id && datosInsertar.contrato_id && datosInsertar.piso && datosInsertar.nombre_area) {
         const { data: aData } = await supabase
           .from("trazabilidad_areas")
@@ -198,50 +184,9 @@ export async function sincronizarColaPendiente() {
         }
       }
 
-      // C. Si es un hisopado ATP que se guardó offline con foto Base64, subir la foto al bucket primero
-      if (fotoBase64Aux && (!datosInsertar.foto_evidencia_url || datosInsertar.foto_evidencia_url === "PENDIENTE_OFFLINE")) {
-        const blobFoto = dataURLABlob(fotoBase64Aux);
-        const rutaArchivo = fotoPathAux || `atp_offline/${Date.now()}.jpg`;
-
-        const { error: errUp } = await supabase.storage
-          .from("evidencias-atp")
-          .upload(rutaArchivo, blobFoto, { contentType: "image/jpeg", upsert: true });
-
-        if (!errUp) {
-          const { data: pubData } = supabase.storage.from("evidencias-atp").getPublicUrl(rutaArchivo);
-          datosInsertar.foto_evidencia_url = pubData.publicUrl;
-        } else {
-          // Si no existía el bucket evidencias-atp o falló storage, conservamos el DataURL para no perder evidencia
-          datosInsertar.foto_evidencia_url = fotoBase64Aux;
-        }
-      }
-
-      // D. Si es un hisopado ATP guardado offline sin poder consultar quién hizo la última DT, lo vinculamos ahora
-      if (
-        item.tabla === "trazabilidad_registros_atp" &&
-        (!datosInsertar.auxiliar_vinculado_nombre || datosInsertar.auxiliar_vinculado_nombre.includes("OFFLINE")) &&
-        datosInsertar.contrato_id
-      ) {
-        const { data: ultDT } = await supabase
-          .from("trazabilidad_registros_limpieza")
-          .select("auxiliar_nombre")
-          .eq("contrato_id", datosInsertar.contrato_id)
-          .eq("piso", datosInsertar.piso)
-          .eq("nombre_area", datosInsertar.nombre_area)
-          .ilike("tipo_limpieza", "%Terminal%")
-          .order("fecha_registro", { ascending: false })
-          .order("hora_registro", { ascending: false })
-          .limit(1);
-
-        datosInsertar.auxiliar_vinculado_nombre =
-          ultDT && ultDT.length > 0 && ultDT[0].auxiliar_nombre
-            ? ultDT[0].auxiliar_nombre
-            : "SIN DT PREVIA EN EL ÁREA";
-      }
-
-      const { error } = await supabase.from(item.tabla).insert([datosInsertar]);
+      const { error } = await supabase.from("trazabilidad_registros_limpieza").insert([datosInsertar]);
       if (error) {
-        console.error("Error al sincronizar ítem:", error.message);
+        console.error("Error al sincronizar registro de limpieza:", error.message);
         restantes.push(item);
       } else {
         subidosExito++;
@@ -255,14 +200,14 @@ export async function sincronizarColaPendiente() {
   guardarColaOffline(restantes);
 
   if (subidosExito > 0) {
-    mostrarToastSincronizacion(`✅ Se sincronizaron ${subidosExito} registro(s) pendiente(s) con la nube.`);
+    mostrarToastSincronizacion(`✅ Se subieron ${subidosExito} registro(s) de limpieza a Supabase.`);
   }
 
   return { subidos: subidosExito, pendientes: restantes.length };
 }
 
 /**
- * 5. BARRA VISUAL FLOTANTE DE ESTADO DE CONEXIÓN Y COLA PENDIENTE
+ * 5. BARRA VISUAL DE CONEXIÓN Y COLA PENDIENTE
  */
 export function inicializarMonitorOffline() {
   iniciarEstilosYBarraDOM();
@@ -310,7 +255,7 @@ export function actualizarBarraEstadoRed(estaSincronizando = false) {
     barra.style.display = "block";
     barra.style.backgroundColor = "#0284c7";
     barra.style.color = "#ffffff";
-    barra.innerHTML = `🔄 Conectando con Supabase: Sincronizando ${cola.length} registro(s) guardado(s) en el teléfono...`;
+    barra.innerHTML = `🔄 Subiendo ${cola.length} registro(s) de limpieza a Supabase...`;
     return;
   }
 
@@ -318,7 +263,7 @@ export function actualizarBarraEstadoRed(estaSincronizando = false) {
     barra.style.display = "block";
     barra.style.backgroundColor = "#dc2626";
     barra.style.color = "#ffffff";
-    barra.innerHTML = `📡 SIN SEÑAL DE INTERNET — Modo Offline Activo (${cola.length} en memoria local). Puede registrar con normalidad; se subirán al recuperar señal.`;
+    barra.innerHTML = `📡 SIN SEÑAL — Modo Offline en Registro (${cola.length} en memoria). Se subirán al recuperar señal.`;
     return;
   }
 
@@ -327,9 +272,9 @@ export function actualizarBarraEstadoRed(estaSincronizando = false) {
     barra.style.backgroundColor = "#f59e0b";
     barra.style.color = "#0f172a";
     barra.innerHTML = `
-      ⚠️ Hay <strong>${cola.length} registro(s)</strong> guardados en el teléfono pendientes de subir.
+      ⚠️ Hay <strong>${cola.length} registro(s) de limpieza</strong> pendientes de subir.
       <button type="button" id="btnForzarSyncERP" style="margin-left:10px; padding:2px 10px; border:none; border-radius:4px; background:#0f172a; color:#fff; font-weight:800; cursor:pointer;">
-        🔄 Sincronizar Ahora
+        🔄 Subir Ahora
       </button>
     `;
     document.getElementById("btnForzarSyncERP")?.addEventListener("click", () => {
@@ -349,37 +294,4 @@ function mostrarToastSincronizacion(mensaje) {
   toast.innerText = mensaje;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 4500);
-}
-
-// =====================================================================
-// 6. CACHÉ DE CREDENCIALES PIN (Para ingreso QR en sótanos sin señal)
-// =====================================================================
-const KEY_CACHE_USUARIOS_PIN = "erp_cleanings_cache_pins_v1";
-
-export async function sincronizarCacheUsuariosPin() {
-  if (!navigator.onLine) return;
-  try {
-    const { data, error } = await supabase
-      .from("trazabilidad_usuarios")
-      .select("id, codigo_pin, nombre_completo, rol, cargo_etiqueta, activo")
-      .eq("activo", true);
-
-    if (!error && Array.isArray(data) && data.length > 0) {
-      localStorage.setItem(KEY_CACHE_USUARIOS_PIN, JSON.stringify(data));
-    }
-  } catch (e) {
-    console.warn("No se pudo actualizar caché de PINs:", e);
-  }
-}
-
-export function buscarUsuarioPorPinOffline(pinBuscado) {
-  try {
-    const raw = localStorage.getItem(KEY_CACHE_USUARIOS_PIN);
-    if (!raw) return null;
-    const lista = JSON.parse(raw);
-    const pinNorm = (pinBuscado || "").trim().toUpperCase();
-    return lista.find(u => (u.codigo_pin || "").trim().toUpperCase() === pinNorm && u.activo) || null;
-  } catch (e) {
-    return null;
-  }
 }

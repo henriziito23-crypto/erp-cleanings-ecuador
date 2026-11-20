@@ -79,7 +79,7 @@
       </div>
 
       <!-- ========================================================= -->
-      <!-- VISTA 2: VENTANA CENTRAL DEL ERP (AMPLIA Y RESPONSIVA)    -->
+      <!-- VISTA 2: VENTANA CENTRAL DEL ERP (SOLO ROL CONTROL)       -->
       <!-- ========================================================= -->
       <div id="seccionHubERP" style="display: none;">
         <div class="text-muted small fw-bold mb-3">SELECCIONE EL MÓDULO DEL SISTEMA CENTRAL:</div>
@@ -150,16 +150,29 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- BOTÓN MAESTRO DE BORRADO DE BASE DE DATOS (SOLO CONTROL) -->
-        <div id="cajaHerramientasRoot" class="mt-4 pt-3 border-top text-center" style="display: none;">
+          <!-- 7. CONTROL COMERCIAL Y CRM DE SERVICIOS (EXCLUSIVO CONTROL) -->
+          <div class="col-12 col-md-6" id="colModuloCRMControl">
+            <div class="module-card h-100 m-0" data-modulo-erp="crm" style="border-color: #0d9488; background: #f0fdfa;">
+              <div class="icon-box" style="background: #0d9488; color: #ffffff;">💼</div>
+              <div>
+                <div class="fw-bold" style="color: #0f766e;">CONTROL COMERCIAL Y CRM DE SERVICIOS</div>
+                <div class="text-muted small">Clientes, cotizaciones, activación QR de servicio, bodega, gastos y rentabilidad</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+<!-- BOTONES MAESTROS DE BACKUP Y BASE DE DATOS (SOLO CONTROL) -->
+        <div id="cajaHerramientasRoot" class="mt-4 pt-3 border-top text-center d-flex justify-content-center gap-2 flex-wrap" style="display: none;">
+          <button type="button" class="btn btn-sm btn-outline-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalBackupsERP">
+            💾 SISTEMA DE BACKUPS (MANUAL Y AUTOMÁTICO TRIMESTRAL)
+          </button>
           <button type="button" class="btn btn-sm btn-outline-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalLimpiezaBD">
             ⚠️ HERRAMIENTA ROOT: VACIAR / REINICIAR BASES DE DATOS
           </button>
         </div>
-      </div> <!-- Fin seccionHubERP -->
+        </div>
 
       <!-- MODAL: LIMPIEZA MAESTRA DE BASE DE DATOS -->
       <div class="modal fade" id="modalLimpiezaBD" tabindex="-1" aria-hidden="true">
@@ -193,6 +206,58 @@
                 </button>
                 <button type="button" class="btn btn-dark fw-bold btnLimpiarBD" data-target="todo">
                   💀 6. FORMATEO TOTAL DE FÁBRICA (Borrar ABSOLUTAMENTE TODO, Contratos y Áreas)
+                </button>
+                <button type="button" class="btn btn-warning fw-bold btnLimpiarBD" data-target="crm">
+              5. Borrar SÓLO Cotizaciones, Servicios CRM, Bodega y Gastos (Reinicia a COT-CLE-001)
+            </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: CENTRO DE BACKUPS MANUAL Y AUTOMÁTICO (3 MESES) -->
+      <div class="modal fade" id="modalBackupsERP" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content border-primary shadow-lg">
+            <div class="modal-header bg-dark text-white py-2">
+              <h6 class="modal-title fw-bold">💾 CENTRO DE RESPALDO Y BACKUP TRIMESTRAL ERP</h6>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light small">
+              <div class="p-3 mb-3 rounded border bg-white shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="fw-bold text-primary">🔄 1. BACKUP AUTOMÁTICO CADA 3 MESES (90 DÍAS)</span>
+                  <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="chkBackupAutoTrimestral" checked>
+                  </div>
+                </div>
+                <p class="text-muted mb-2" style="font-size: 0.75rem;">
+                  Al estar activo, el ERP verifica automáticamente cada 90 días los servicios cerrados y registros históricos, descarga el paquete de respaldo a su equipo y opcionalmente libera espacio en Supabase.
+                </p>
+                <div class="d-flex justify-content-between text-muted" style="font-size: 0.74rem;">
+                  <span>Último respaldo: <strong class="text-dark" id="lblUltimoBackupFecha">Sin registros</strong></span>
+                  <span>Próximo corte: <strong class="text-success" id="lblProximoBackupFecha">Automático (90 días)</strong></span>
+                </div>
+              </div>
+
+              <div class="p-3 rounded border bg-white shadow-sm">
+                <div class="fw-bold text-dark mb-2">📥 2. GENERAR BACKUP MANUAL INMEDIATO</div>
+                <div class="mb-2">
+                  <label class="form-label small fw-bold m-0">Seleccione el alcance del respaldo:</label>
+                  <select class="form-select form-select-sm fw-bold mt-1" id="selAlcanceBackup">
+                    <option value="CRM_SERVICIOS">Módulo CRM, Cotizaciones, Servicios, Bodega y Gastos</option>
+                    <option value="COMPLETO_ERP">Respaldo Total del ERP (Contratos, Asistencia, Trazabilidad y CRM)</option>
+                  </select>
+                </div>
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" id="chkPurgarAntiguosBackup">
+                  <label class="form-check-label text-danger fw-bold" for="chkPurgarAntiguosBackup" style="font-size: 0.74rem;">
+                    Depurar de la BD los servicios "REALIZADOS" con más de 3 meses tras descargar el backup (Libera espacio en Supabase)
+                  </label>
+                </div>
+                <button type="button" class="btn btn-primary w-100 fw-bold" id="btnDescargarBackupManual">
+                  💾 Descargar Backup Ahora (.JSON + .XLSX)
                 </button>
               </div>
             </div>
@@ -663,5 +728,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module" src="./core/panel.ctrl.js"></script>
+
+<script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW:', err));
+    }
+  </script>
 </body>
 </html>

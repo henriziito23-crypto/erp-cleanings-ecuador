@@ -192,25 +192,20 @@ function actualizarTurnosDelContratoActivo() {
 }
 
 // =====================================================================
-// PESTAÑA 1: CREACIÓN DE USUARIOS (CORREGIDO PARA MOSTRAR SIEMPRE AL CREAR)
+// PESTAÑA 1: CREACIÓN DE USUARIOS (CONECTADO A RPC SEGURO)
 // =====================================================================
 async function cargarUsuariosDelFiltro() {
   const filtroContratoId = document.getElementById("selContratoGlobal").value;
   const personaPrev = document.getElementById("selPersonaGlobal").value;
 
-  let query = supabase
-    .from("trazabilidad_usuarios")
-    .select("*")
-    .eq("activo", true)
-    .order("nombre_completo", { ascending: true });
+  const { data, error } = await supabase.rpc("listar_usuarios_asistencia", {
+    p_contrato_id: filtroContratoId === "TODOS" ? null : filtroContratoId
+  });
 
-  // Reemplaza el bloque if (filtroContratoId !== "TODOS") por este:
-  if (filtroContratoId !== "TODOS") {
-    query = query.or(`contrato_base_id.eq.${filtroContratoId},contrato_secundario_id.eq.${filtroContratoId}`);
+  if (error) {
+    console.error("Error listando usuarios:", error.message);
+    return;
   }
-
-  const { data, error } = await query;
-  if (error) return;
 
   listaUsuarios = data || [];
   document.getElementById("badgeTotalUsuarios").innerText = `${listaUsuarios.length} trabajadores`;
@@ -246,7 +241,7 @@ async function cargarUsuariosDelFiltro() {
     tr.innerHTML = `
       <td class="text-center fw-bold text-muted">${idx + 1}</td>
       <td class="text-center">${u.cedula || "-"}</td>
-      <td class="text-center fw-bold text-primary">${u.codigo_pin}</td>
+      <td class="text-center fw-bold text-muted">••••</td>
       <td class="fw-bold text-dark">${u.nombre_completo}</td>
       <td class="fw-semibold text-primary">${nombreContrato}</td>
       <td>${u.cargo_etiqueta || "-"}</td>
@@ -267,7 +262,9 @@ async function cargarUsuariosDelFiltro() {
 function prepararEdicionUsuario(u) {
   document.getElementById("editUsuarioId").value = u.id;
   document.getElementById("usuCedula").value = u.cedula || "";
-  document.getElementById("usuPin").value = u.codigo_pin || "";
+  document.getElementById("usuPin").value = "";
+  document.getElementById("usuPin").required = false;
+  document.getElementById("usuPin").placeholder = "Dejar vacío para mantener PIN actual";
   document.getElementById("usuNombre").value = u.nombre_completo || "";
   document.getElementById("usuContratoAsignado").value = u.contrato_base_id || "";
   if (document.getElementById("usuContratoSecundario")) {
@@ -287,6 +284,8 @@ function limpiarFormularioUsuario() {
   const contratoActual = document.getElementById("selContratoGlobal").value;
   document.getElementById("formCrearUsuario").reset();
   document.getElementById("editUsuarioId").value = "";
+  document.getElementById("usuPin").required = true;
+  document.getElementById("usuPin").placeholder = "Ej: 4821";
   document.getElementById("usuSueldo").value = "460.00";
   document.getElementById("usuEtiqueta").value = "AUXILIAR DE LIMPIEZA";
   if (contratoActual && contratoActual !== "TODOS") {
@@ -302,50 +301,50 @@ function limpiarFormularioUsuario() {
 
 async function guardarUsuarioERP(e) {
   e.preventDefault();
-  const editId = document.getElementById("editUsuarioId").value;
+  const editId = document.getElementById("editUsuarioId").value || null;
   const contratoElegido = document.getElementById("usuContratoAsignado").value;
+  const nombreCompleto = document.getElementById("usuNombre").value.trim().toUpperCase();
+  const rolElegido = document.getElementById("usuRol").value;
 
-const payload = {
-    cedula: document.getElementById("usuCedula").value.trim(),
-    codigo_pin: document.getElementById("usuPin").value.trim().toUpperCase(),
-    nombre_completo: document.getElementById("usuNombre").value.trim().toUpperCase(),
-    contrato_base_id: contratoElegido,
-    contrato_secundario_id: document.getElementById("usuContratoSecundario")?.value || null, // 🔴 NUEVO
-    rol: document.getElementById("usuRol").value,
-    cargo_etiqueta: document.getElementById("usuEtiqueta").value.trim().toUpperCase(),
-    telefono: document.getElementById("usuTelefono").value.trim(),
-    sueldo_base: parseFloat(document.getElementById("usuSueldo").value) || 460.00,
-    activo: true
-  };
+  const { data: userId, error } = await supabase.rpc("guardar_usuario_erp", {
+    p_id: editId,
+    p_cedula: document.getElementById("usuCedula").value.trim(),
+    p_pin: document.getElementById("usuPin").value.trim().toUpperCase(),
+    p_nombre: nombreCompleto,
+    p_contrato_base_id: contratoElegido,
+    p_contrato_secundario_id: document.getElementById("usuContratoSecundario")?.value || null,
+    p_rol: rolElegido,
+    p_cargo_etiqueta: document.getElementById("usuEtiqueta").value.trim().toUpperCase(),
+    p_telefono: document.getElementById("usuTelefono").value.trim(),
+    p_sueldo_base: parseFloat(document.getElementById("usuSueldo").value) || 460.00
+  });
 
-  const res = editId
-    ? await supabase.from("trazabilidad_usuarios").update(payload).eq("id", editId).select().single()
-    : await supabase.from("trazabilidad_usuarios").insert([payload]).select().single();
-
-  if (res.error) {
-    alert("Error al guardar usuario (verifique que el PIN no esté repetido): " + res.error.message);
+  if (error) {
+    alert("Error al guardar usuario: " + error.message);
     return;
   }
 
-  if (payload.rol === "SUPERVISOR" && contratoElegido && res.data) {
+  if (rolElegido === "SUPERVISOR" && contratoElegido && userId) {
     await supabase
       .from("trazabilidad_contrato_supervisores")
-      .upsert([{ contrato_id: contratoElegido, supervisor_id: res.data.id }], { onConflict: "contrato_id,supervisor_id" });
+      .upsert([{ contrato_id: contratoElegido, supervisor_id: userId }], { onConflict: "contrato_id,supervisor_id" });
   }
 
-  // Sincronizar el filtro superior con el contrato donde se acaba de crear el usuario para que se vea de inmediato
   document.getElementById("selContratoGlobal").value = contratoElegido;
   limpiarFormularioUsuario();
-  mostrarMensaje(`✓ Usuario ${payload.nombre_completo} (PIN: ${payload.codigo_pin}) registrado y visible en la tabla.`);
+  mostrarMensaje(`✓ Usuario ${nombreCompleto} guardado con PIN cifrado y visible en la tabla.`);
   await recargarTodoElModulo();
 }
 
 async function desactivarUsuario(u) {
   if (!confirm(`¿Dar de baja a ${u.nombre_completo}?`)) return;
-  await supabase.from("trazabilidad_usuarios").update({ activo: false }).eq("id", u.id);
+  const { error } = await supabase.rpc("desactivar_usuario_erp", { p_id: u.id });
+  if (error) {
+    alert("Error al dar de baja: " + error.message);
+    return;
+  }
   await recargarTodoElModulo();
 }
-
 // =====================================================================
 // PESTAÑA 2: CALENDARIO MENSUAL INTERACTIVO (CLIC EN CELDA -> DÍA O SEMANA)
 // =====================================================================
@@ -1106,9 +1105,6 @@ async function cargarMarcacionesDeServicios() {
   });
 }
 
-// =====================================================================
-// PESTAÑA 6: BANDEJA DE NOTIFICACIONES DE SUPERVISIÓN
-// =====================================================================
 async function cargarHistorialNovedades() {
   const mesGlobal = document.getElementById("selMesGlobal").value;
   const filtroContratoId = document.getElementById("selContratoGlobal").value;
@@ -1120,7 +1116,7 @@ async function cargarHistorialNovedades() {
 
   let query = supabase
     .from("asistencia_novedades")
-    .select("*, titular:trazabilidad_usuarios!asistencia_novedades_usuario_titular_id_fkey(nombre_completo), reemplazo:trazabilidad_usuarios!asistencia_novedades_usuario_reemplazo_id_fkey(nombre_completo)")
+    .select("*")
     .gte("fecha_novedad", `${mesGlobal}-01`)
     .lte("fecha_novedad", `${mesGlobal}-${String(diasMes).padStart(2, "0")}`)
     .order("fecha_novedad", { ascending: false });
@@ -1130,7 +1126,14 @@ async function cargarHistorialNovedades() {
     query = query.or(`usuario_titular_id.eq.${filtroPersonaId},usuario_reemplazo_id.eq.${filtroPersonaId}`);
   }
 
-  const { data } = await query;
+  const [{ data }, { data: nombresData }] = await Promise.all([
+    query,
+    supabase.rpc("obtener_mapa_nombres_usuarios")
+  ]);
+
+  const mapaNombres = {};
+  (nombresData || []).forEach(u => { mapaNombres[u.id] = u.nombre_completo; });
+
   const tbody = document.getElementById("tbodyNovedades");
   tbody.innerHTML = "";
 
@@ -1142,13 +1145,16 @@ async function cargarHistorialNovedades() {
 
   filas.forEach(n => {
     const cInfo = mapaContratosPorId[n.contrato_id];
+    const nomTitular = n.usuario_titular_id ? (mapaNombres[n.usuario_titular_id] || "-") : "-";
+    const nomReemplazo = n.usuario_reemplazo_id ? (mapaNombres[n.usuario_reemplazo_id] || "SIN REEMPLAZO") : "SIN REEMPLAZO";
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="text-center fw-bold">${n.fecha_novedad}</td>
       <td class="text-center fw-semibold text-primary">${cInfo ? cInfo.codigo_contrato : "-"}</td>
       <td class="text-center"><span class="badge bg-dark">${n.tipo_novedad}</span></td>
-      <td class="fw-bold text-danger">${n.titular ? n.titular.nombre_completo : "-"}</td>
-      <td class="fw-bold text-success">${n.reemplazo ? n.reemplazo.nombre_completo : "SIN REEMPLAZO"}</td>
+      <td class="fw-bold text-danger">${nomTitular}</td>
+      <td class="fw-bold text-success">${nomReemplazo}</td>
       <td>${n.descripcion || "-"}</td>
       <td class="text-center">${n.registrado_por || "SUPERVISIÓN"}</td>
       <td class="text-center">

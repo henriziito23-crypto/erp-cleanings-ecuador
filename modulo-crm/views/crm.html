@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Control Comercial y CRM de Servicios - Cleanings ERP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../modulo-asistencia/css/asistencia.css">
+  <style>
+    .semaforo-card { cursor: pointer; transition: transform 0.15s; }
+    .semaforo-card:hover { transform: translateY(-2px); }
+    .badge-PENDIENTE { background: #fef3c7; color: #b45309; border: 1px solid #f59e0b; }
+    .badge-NO_APROBADO { background: #fee2e2; color: #b91c1c; border: 1px solid #ef4444; }
+    .badge-APROBADO { background: #dcfce7; color: #15803d; border: 1px solid #22c55e; }
+    .badge-REALIZADO { background: #dbeafe; color: #1d4ed8; border: 1px solid #3b82f6; }
+  </style>
+</head>
+<body class="p-2 p-md-3">
+  <div class="container-fluid" style="max-width: 1380px;">
+
+    <!-- ENCABEZADO -->
+    <div class="header-asistencia d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
+      <div>
+        <h5 class="m-0 fw-bold">CONTROL COMERCIAL, CLIENTES, COTIZACIONES Y TRAZABILIDAD 360°</h5>
+        <small style="opacity: 0.92;">Conectado con Supervisión (Operaciones), Bodega de Inventarios y Solicitudes de Viáticos — Cleanings ERP</small>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-light text-dark fw-bold px-3 py-2" id="lblUsuarioActivoCRM">-</span>
+        <a href="../../index.html" class="btn btn-outline-light btn-sm fw-bold px-3">
+          ← Menú Principal ERP
+        </a>
+      </div>
+    </div>
+
+    <!-- FILTRO GLOBAL SUPERIOR -->
+    <div class="card-modulo p-3 no-print">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label small fw-bold text-primary m-0">🔍 1. Buscar por Cliente, RUC o Código (COT / SRV):</label>
+          <input type="text" class="form-control form-control-sm fw-bold border-primary" id="txtFiltroGlobalCRM" placeholder="Escriba nombre del cliente, RUC o COT-CLE-001...">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-bold text-primary m-0">📅 2. Filtrar por Mes:</label>
+          <input type="month" class="form-control form-control-sm fw-bold border-primary" id="selMesGlobalCRM">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-bold text-secondary m-0">🚦 3. Estado de Cotización / Servicio:</label>
+          <select class="form-select form-select-sm fw-bold" id="selEstadoGlobalCRM">
+            <option value="TODOS">TODOS LOS ESTADOS</option>
+            <option value="PENDIENTE">🟡 PENDIENTES / ENVIADOS</option>
+            <option value="NO_APROBADO">🔴 NO APROBADOS</option>
+            <option value="APROBADO">🟢 APROBADOS (EN EJECUCIÓN)</option>
+            <option value="REALIZADO">🔵 TERMINADOS (FACTURAR)</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-2">
+          <button type="button" class="btn btn-dark btn-sm w-100 fw-bold" onclick="window.print()">
+            🖨️ Exportar a PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NAVEGACIÓN 5 PESTAÑAS -->
+    <ul class="nav nav-pills nav-fill gap-1 mb-3 p-2 bg-white rounded border shadow-sm no-print" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab1Clientes" id="btnIrTabClientes">
+          🏢 1. Clientes
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab2Cotizaciones" id="btnIrTabCotizaciones">
+          📝 2. Cotizaciones
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab3ServiciosQR" id="btnIrTabServicios">
+          🚀 3. Servicios Creados
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab4ViaticosCRM" id="btnIrTabViaticos">
+          💵 4. Solicitudes de Viáticos <span class="badge bg-danger ms-1" id="badgePendViaticosCRM" style="display:none;">0</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab5Metricas360" id="btnIrTabMetricas">
+          📊 5. Control 360° y Gráficas
+        </button>
+      </li>
+    </ul>
+
+    <div id="msgFeedbackCRM" class="alert alert-success py-2 px-3 mb-3 small fw-bold text-center shadow-sm no-print" style="display: none;"></div>
+
+    <div class="tab-content">
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 1: CARTERA DE CLIENTES                                    -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade show active" id="tab1Clientes">
+        <div class="card-modulo p-3 no-print">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold text-primary small" id="lblTituloFormCliente">
+              ➕ REGISTRAR NUEVO CLIENTE EN LA BASE DE DATOS COMERCIAL
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="btnCancelarEdicionCliente" style="display: none;">
+              Cancelar Edición ✖
+            </button>
+          </div>
+
+          <form id="formCrearCliente" class="row g-2 align-items-end">
+            <input type="hidden" id="editClienteId" value="">
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">RUC / Cédula *</label>
+              <input type="text" class="form-control form-control-sm fw-bold" id="cliRuc" placeholder="1790000000001" required>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label small fw-bold m-0">Razón Social / Nombre del Cliente *</label>
+              <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="cliRazonSocial" placeholder="Ej: HOSPITAL DEL HOLDING / CONSTRUCTORA" required>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">Ciudad *</label>
+              <input type="text" class="form-control form-control-sm" id="cliCiudad" value="Quito" required>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label small fw-bold m-0">Dirección Principal / Matriz *</label>
+              <input type="text" class="form-control form-control-sm" id="cliDireccion" placeholder="Av. República del Salvador y..." required>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label small fw-bold m-0">Persona de Contacto *</label>
+              <input type="text" class="form-control form-control-sm text-uppercase" id="cliContacto" placeholder="ING. MARÍA FERNANDA" required>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">Cargo</label>
+              <input type="text" class="form-control form-control-sm text-uppercase" id="cliCargo" placeholder="COMPRAS / ADMIN">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small fw-bold m-0">Correo Electrónico *</label>
+              <input type="email" class="form-control form-control-sm" id="cliCorreo" placeholder="compras@cliente.com" required>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">Teléfono / Celular *</label>
+              <input type="text" class="form-control form-control-sm fw-bold" id="cliTelefono" placeholder="0990000000" required>
+            </div>
+            <div class="col-12 col-md-2">
+              <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-2" id="btnGuardarCliente">
+                💾 Guardar Cliente
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card-modulo p-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold text-dark small">DIRECTORIO HISTÓRICO DE CLIENTES REGISTRADOS</span>
+            <span class="badge bg-dark" id="badgeTotalClientes">0 clientes</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>RUC / CÉDULA</th>
+                  <th>CLIENTE / RAZÓN SOCIAL</th>
+                  <th>CIUDAD / DIRECCIÓN</th>
+                  <th>CONTACTO PRINCIPAL</th>
+                  <th>CORREO ELECTRÓNICO</th>
+                  <th>TELÉFONO</th>
+                  <th>COTIZACIONES</th>
+                  <th class="no-print">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyClientesCRM"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 2: EMISIÓN Y EDICIÓN DE COTIZACIONES MULTI-ÍTEM           -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab2Cotizaciones">
+        <div class="card-modulo p-3 no-print">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold text-primary small" id="lblTituloFormCotizacion">
+              ➕ EMITIR NUEVA COTIZACIÓN (SELECCIONE UN CLIENTE Y AÑADA UNO O MÁS RUBROS)
+            </span>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 fw-bold" id="btnCancelarEdicionCot" style="display: none;">
+                Cancelar Edición ✖
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary py-0 fw-bold" id="btnIrACrearClienteRapido">
+                + ¿Cliente nuevo? Ir a Pestaña 1
+              </button>
+            </div>
+          </div>
+
+          <form id="formCrearCotizacion" class="row g-2 align-items-end">
+            <input type="hidden" id="editCotId" value="">
+            <input type="hidden" id="editCotEstadoOriginal" value="">
+
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold text-primary m-0">Código Automático *</label>
+              <input type="text" class="form-control form-control-sm fw-bold border-primary bg-light text-center" id="cotCodigo" readonly required>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold text-primary m-0">1. Seleccionar Cliente Registrado *</label>
+              <select class="form-select form-select-sm fw-bold border-primary" id="cotSelectCliente" required>
+                <option value="">-- Seleccione un cliente registrado --</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">RUC (Autocompletado)</label>
+              <input type="text" class="form-control form-control-sm bg-light" id="cotRucAuto" readonly>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label small fw-bold m-0">Contacto y Correo (Autocompletado)</label>
+              <input type="text" class="form-control form-control-sm bg-light" id="cotContactoAuto" readonly>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label class="form-label small fw-bold m-0">2. Categoría General *</label>
+              <select class="form-select form-select-sm fw-bold" id="cotTipo" required>
+                <option value="POST_CONSTRUCCION">FIN DE OBRA / POST-CONSTRUCCIÓN</option>
+                <option value="ALTURA_FACHADAS">LIMPIEZA EN ALTURA / FACHADAS</option>
+                <option value="CLINICA_PROFUNDA">DESINFECCIÓN CLÍNICA / HOSPITALARIA</option>
+                <option value="INSTITUCIONAL">MANTENIMIENTO INSTITUCIONAL</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small fw-bold m-0">Ciudad del Servicio *</label>
+              <input type="text" class="form-control form-control-sm" id="cotCiudad" value="Quito" required>
+            </div>
+            <div class="col-12 col-md-7">
+              <label class="form-label small fw-bold m-0">Dirección / Punto Específico donde se ejecutará el Servicio *</label>
+              <input type="text" class="form-control form-control-sm" id="cotDireccion" placeholder="Se autocompleta con la del cliente, o cámbiela si es otra obra/sucursal" required>
+            </div>
+
+            <div class="col-12 mt-3">
+              <div class="p-2 border rounded bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="small fw-bold text-dark">
+                    📋 3. DESGLOSE DE SERVICIOS / RUBROS A COTIZAR:
+                  </span>
+                  <button type="button" class="btn btn-sm btn-dark fw-bold py-0 px-2" id="btnAgregarItemCot">
+                    ➕ Añadir otro Servicio / Descripción
+                  </button>
+                </div>
+                <div id="contenedorItemsCotizacion" class="d-flex flex-column gap-2"></div>
+              </div>
+            </div>
+
+            <div class="col-4 col-md-3 mt-2">
+              <label class="form-label small fw-bold text-primary m-0">Subtotal Suma Ítems ($) *</label>
+              <input type="number" step="0.01" class="form-control form-control-sm fw-bold border-primary bg-light" id="cotSubtotal" value="0.00" readonly required>
+            </div>
+            <div class="col-4 col-md-3 mt-2">
+              <label class="form-label small fw-bold m-0">IVA 15% ($)</label>
+              <input type="number" step="0.01" class="form-control form-control-sm bg-light" id="cotIva" value="0.00" readonly>
+            </div>
+            <div class="col-4 col-md-3 mt-2">
+              <label class="form-label small fw-bold text-success m-0">TOTAL COTIZADO ($)</label>
+              <input type="number" step="0.01" class="form-control form-control-sm fw-bold bg-light border-success" id="cotTotal" value="0.00" readonly>
+            </div>
+            <div class="col-12 col-md-3 mt-2">
+              <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-2" id="btnSubmitCotizacion">
+                💾 Generar Cotización
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card-modulo p-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold text-dark small">HISTORIAL DE COTIZACIONES EMITIDAS</span>
+            <span class="badge bg-dark" id="badgeTotalCotizaciones">0 cotizaciones</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>CÓDIGO</th>
+                  <th>FECHA</th>
+                  <th>CLIENTE ANCLADO</th>
+                  <th>CONTACTO / CORREO</th>
+                  <th>DESGLOSE DE SERVICIOS COTIZADOS</th>
+                  <th>SUBTOTAL</th>
+                  <th>TOTAL (IVA INC.)</th>
+                  <th>ESTADO</th>
+                  <th class="no-print">ACCIONES COMERCIALES</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyCotizaciones"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 3: SERVICIOS CREADOS (ENVIADOS A SUPERVISIÓN)             -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab3ServiciosQR">
+        <div class="card-modulo p-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div>
+              <span class="fw-bold text-primary small">
+                🚀 SERVICIOS EVENTUALES CREADOS (SRV-CLE-XXX) — ENVIADOS A SUPERVISIÓN (OPERACIONES)
+              </span>
+              <div class="small text-muted">
+                Al aprobar una cotización, el servicio entra primero a <strong>Supervisión</strong> para asignar supervisor, personal, insumos y viáticos.
+              </div>
+            </div>
+            <div class="d-flex gap-2 no-print">
+              <a href="../../modulo-supervision/views/supervision.html" class="btn btn-sm btn-primary fw-bold">
+                👷 Ir a Supervisión (Operaciones)
+              </a>
+              <a href="../../modulo-inventarios/views/inventarios.html" class="btn btn-sm btn-outline-dark fw-bold">
+                📦 Ir a Inventarios (Bodega)
+              </a>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>CÓDIGO SERVICIO</th>
+                  <th>COTIZACIÓN</th>
+                  <th>CLIENTE / PUNTO</th>
+                  <th>SUPERVISOR ASIGNADO</th>
+                  <th>FECHA ALTA</th>
+                  <th>ESTADO TRAZABILIDAD 360°</th>
+                  <th class="no-print">EXPEDIENTE 360°</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyServiciosActivos"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 4: SOLICITUDES DE VIÁTICOS / DINERO DESDE OPERACIONES     -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab4ViaticosCRM">
+        <div class="card-modulo p-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div>
+              <span class="fw-bold text-primary small">
+                💵 SOLICITUDES DE VIÁTICOS APROBADAS POR OPERACIONES (EXCLUSIVO PEDIDO DE DINERO)
+              </span>
+              <div class="small text-muted">
+                Aquí llegan únicamente los pedidos de dinero (Alimentación, Combustible, Bebidas, Logística y Gastos Varios) aprobados por el supervisor/coordinador.
+              </div>
+            </div>
+            <span class="badge bg-dark" id="badgeTotalViaticosCRM">0 solicitudes</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>SERVICIO</th>
+                  <th>CLIENTE / SUPERVISOR</th>
+                  <th>ALIMENTACIÓN</th>
+                  <th>COMBUSTIBLE</th>
+                  <th>BEBIDAS</th>
+                  <th>LOGÍSTICA</th>
+                  <th>GASTOS VARIOS</th>
+                  <th>TOTAL ($)</th>
+                  <th>ESTADO</th>
+                  <th class="no-print">ACCIÓN</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyViaticosCRM"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 5: CONTROL 360°, GRÁFICAS Y MATRIZ DE RENTABILIDAD        -->
+      <!-- ================================================================= -->
+      <div class="tab-pane fade" id="tab5Metricas360">
+        <div class="row g-2 mb-3">
+          <div class="col-6 col-md-3">
+            <div class="kpi-nomina semaforo-card border-start border-4 border-warning" data-sem-estado="PENDIENTE">
+              <div class="small text-muted fw-bold">🟡 PENDIENTES</div>
+              <div class="fs-5 fw-bold text-warning" id="semCantPendiente">0 ($0.00)</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="kpi-nomina semaforo-card border-start border-4 border-danger" data-sem-estado="NO_APROBADO">
+              <div class="small text-muted fw-bold">🔴 NO APROBADOS</div>
+              <div class="fs-5 fw-bold text-danger" id="semCantNoAprobado">0 ($0.00)</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="kpi-nomina semaforo-card border-start border-4 border-success" data-sem-estado="APROBADO">
+              <div class="small text-muted fw-bold">🟢 EN PROCESO OPERATIVO</div>
+              <div class="fs-5 fw-bold text-success" id="semCantAprobado">0 ($0.00)</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="kpi-nomina semaforo-card border-start border-4 border-primary" data-sem-estado="REALIZADO">
+              <div class="small text-muted fw-bold">🔵 TERMINADOS — FACTURAR</div>
+              <div class="fs-5 fw-bold text-primary" id="semCantRealizado">0 ($0.00)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-5">
+            <div class="card-modulo p-3 h-100 m-0">
+              <div class="fw-bold small text-dark mb-2">📊 ESTADO DE COTIZACIONES Y SERVICIOS</div>
+              <div style="height: 220px;">
+                <canvas id="chartDistribucionCRM"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-md-7">
+            <div class="card-modulo p-3 h-100 m-0">
+              <div class="fw-bold small text-dark mb-2">💲 COMPARATIVA: VALOR COTIZADO VS. GASTO REAL EJECUTADO</div>
+              <div style="height: 220px;">
+                <canvas id="chartCostoVsGastoCRM"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-modulo p-3">
+          <div class="fw-bold text-dark small mb-2">
+            🔍 CONTROL 360° DE GERENCIA — ESTADO EN VIVO DEL FLUJO Y RENTABILIDAD REAL POR SERVICIO:
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm m-0 table-asistencia">
+              <thead>
+                <tr>
+                  <th>SERVICIO</th>
+                  <th>CLIENTE / SUPERVISOR</th>
+                  <th>ESTADO FLUJO 360°</th>
+                  <th>COTIZADO (SUBT.)</th>
+                  <th>INSUMOS NO DEV.</th>
+                  <th>ALIMENTACIÓN</th>
+                  <th>COMBUSTIBLE</th>
+                  <th>OTROS GASTOS</th>
+                  <th>GASTO REAL TOTAL</th>
+                  <th>MARGEN REAL</th>
+                  <th class="no-print">DETALLE 360°</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyMatrizRentabilidad"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE 360° DEL SERVICIO -->
+  <div class="modal fade" id="modalDetalleServicioCRM" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-dark text-white py-2">
+          <h6 class="modal-title fw-bold" id="tituloModalDetalleCRM">🔍 Expediente 360° del Servicio</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body small" id="cuerpoModalDetalleCRM"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script type="module" src="../js/crm.ctrl.js"></script>
+</body>
+</html>
