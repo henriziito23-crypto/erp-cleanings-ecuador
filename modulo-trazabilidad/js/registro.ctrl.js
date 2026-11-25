@@ -466,6 +466,8 @@ async function guardarRegistro(e) {
     document.getElementById("moduloExito").style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
 
+    iniciarCierreAutomatico();
+
   } catch (err) {
     btn.disabled = false;
     btn.innerText = "💾 Registrar Limpieza";
@@ -488,4 +490,32 @@ function volverARegistrarNuevo() {
   }
 
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function iniciarCierreAutomatico() {
+  let segundos = 3;
+  const spanSeg = document.getElementById("segCierre");
+  const lblCierre = document.getElementById("lblCierreAuto");
+
+  const intervalo = setInterval(() => {
+    segundos--;
+    if (spanSeg) spanSeg.innerText = segundos;
+
+    if (segundos <= 0) {
+      clearInterval(intervalo);
+      sessionStorage.clear();
+
+      // 1. Intenta cerrar la pestaña (funciona en PWA o ventanas abiertas por script)
+      window.close();
+
+      // 2. Respaldo si el navegador del celular bloquea window.close()
+      setTimeout(() => {
+        if (lblCierre) {
+          lblCierre.className = "alert alert-success py-2 small fw-bold mb-3";
+          lblCierre.innerText = "✅ Proceso finalizado. Puede cerrar esta ventana.";
+        }
+        window.location.replace("../../index.html");
+      }, 300);
+    }
+  }, 1000);
 }

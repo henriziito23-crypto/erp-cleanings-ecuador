@@ -109,9 +109,8 @@ function comprimirImagenInput(e, callback) {
 }
 
 function obtenerUrlRaizERP() {
-  return window.location.origin + window.location.pathname.replace(/\/modulo-supervision\/views\/supervision\.html$/i, "");
+  return window.location.origin + window.location.pathname.replace(/\/modulo-supervision\/views\/supervision(\.html)?\/?$/i, "");
 }
-
 // =====================================================================
 // MÓDULO 1: SERVICIOS EVENTUALES (CARGA MAESTRA Y CANDADOS)
 // =====================================================================

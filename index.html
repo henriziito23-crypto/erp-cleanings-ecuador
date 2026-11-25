@@ -40,28 +40,75 @@
       </div>
 
       <!-- ========================================================= -->
-      <!-- VISTA 1: LOGIN CENTRAL POR PIN (COMPACTO)                 -->
+      <!-- VISTA 1: LOGIN CENTRAL POR PIN Y CORREO (SUPABASE AUTH)   -->
       <!-- ========================================================= -->
       <div id="seccionLogin">
-        <p class="text-center text-muted small mb-3">
-          Ingrese su código PIN asignado para acceder al sistema según su nivel de autorización:
-        </p>
-        <form id="formAcceso" autocomplete="off">
-          <div class="mb-3">
-            <input 
-              type="text" 
-              inputmode="numeric"
-              class="form-control text-center fw-bold pin-oculto" 
-              id="txtCodigo" 
-              placeholder="••••" 
-              required 
-              autofocus>
-            <div id="msgError" class="text-danger small text-center fw-bold mt-2" style="display: none; white-space: pre-line;"></div>
+        <!-- ACCESO SOLO LECTURA PARA AUDITORÍA / INSPECCIÓN SIN PIN -->
+        <div id="bloqueAccesoSinPin" class="text-center mb-3" style="display: none;">
+          <a href="#" id="btnAccesoSinCodigo" 
+             class="d-block py-2 px-3 rounded-3 fw-bold text-decoration-none shadow-sm"
+             style="background-color: #f0f9ff; border: 1.5px solid #0284c7; color: #0284c7; font-size: 0.84rem;">
+            👁️ En caso de no tener código, dirigirse aquí
+          </a>
+        </div>
+
+        <!-- PESTAÑAS DE INGRESO: PIN (OPERATIVO) vs CORREO (ADMINISTRATIVO) -->
+        <ul class="nav nav-pills nav-fill mb-3 p-1 bg-light rounded border" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active fw-bold small py-1" data-bs-toggle="tab" data-bs-target="#tabLoginPin" type="button">
+              🔢 Operativo (PIN)
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link fw-bold small py-1" data-bs-toggle="tab" data-bs-target="#tabLoginCorreo" type="button">
+              📧 Admin / Sup.
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <!-- TAB 1: LOGIN POR PIN -->
+          <div class="tab-pane fade show active" id="tabLoginPin">
+            <p class="text-center text-muted small mb-3">
+              Ingrese su código PIN asignado para acceder al sistema:
+            </p>
+            <form id="formAcceso" autocomplete="off">
+              <div class="mb-3">
+                <input 
+                  type="text" 
+                  inputmode="numeric"
+                  class="form-control text-center fw-bold pin-oculto" 
+                  id="txtCodigo" 
+                  placeholder="••••" 
+                  required 
+                  autofocus>
+                <div id="msgError" class="text-danger small text-center fw-bold mt-2" style="display: none; white-space: pre-line;"></div>
+              </div>
+              <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" id="btnIngresar">
+                🔐 Validar Acceso al ERP
+              </button>
+            </form>
           </div>
-          <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" id="btnIngresar">
-            🔐 Validar Acceso al ERP
-          </button>
-        </form>
+
+          <!-- TAB 2: LOGIN POR CORREO Y CONTRASEÑA (SUPABASE AUTH) -->
+          <div class="tab-pane fade" id="tabLoginCorreo">
+            <p class="text-center text-muted small mb-3">
+              Acceso seguro con credenciales corporativas (Control y Supervisión):
+            </p>
+            <form id="formAccesoCorreo" autocomplete="on">
+              <div class="mb-2">
+                <input type="email" class="form-control" id="txtCorreoAuth" placeholder="correo@cleaningsecuador.com" required>
+              </div>
+              <div class="mb-3">
+                <input type="password" class="form-control" id="txtPassAuth" placeholder="Contraseña" required>
+                <div id="msgErrorCorreo" class="text-danger small text-center fw-bold mt-2" style="display: none; white-space: pre-line;"></div>
+              </div>
+              <button type="submit" class="btn btn-dark w-100 py-2 fw-bold shadow-sm" id="btnIngresarCorreo">
+                🛡️ Iniciar Sesión Segura
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
 
       <!-- BARRA SUPERIOR DE USUARIO ACTIVO -->
@@ -728,6 +775,24 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module" src="./core/panel.ctrl.js"></script>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      // Mostrar el enlace solo si el ingreso viene de un QR con contrato/área
+      if (params.get("contrato") || params.get("area")) {
+        const bloque = document.getElementById("bloqueAccesoSinPin");
+        if (bloque) bloque.style.display = "block";
+      }
+
+      document.getElementById("btnAccesoSinCodigo")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set("modo", "solo_lectura");
+        urlParams.set("rol", "INVITADO");
+        window.location.href = `./modulo-trazabilidad/views/auditoria.html?${urlParams.toString()}`;
+      });
+    })();
+  </script>
 
 <script>
     if ('serviceWorker' in navigator) {

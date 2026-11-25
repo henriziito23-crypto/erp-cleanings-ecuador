@@ -1,10 +1,41 @@
 // =====================================================================
 // ARCHIVO: modulo-crm/js/crm.ctrl.js
-// Controlador CRM: Clientes, Cotizaciones Multi-Ítem, Servicios Eventuales,
-// Solicitudes de Viáticos (Operaciones -> CRM) y Control 360° en Vivo
+// Controlador CRM Multi-Empresa (CLEANINGSEC CORP SAS & ECCLEANINGS SAS)
 // =====================================================================
 import { supabase } from "../../core/supabaseClient.js";
 import { obtenerSesionActiva } from "../../core/router.js";
+
+// CONFIGURACIÓN DE AMBAS EMPRESAS HERMANAS
+const EMPRESAS_HERMANAS = {
+  CLEANINGSEC_CORP: {
+    clave: "CLEANINGSEC_CORP",
+    razonSocial: "CLEANINGSEC CORP SAS",
+    subnombre: "Cleanings Corp",
+    eslogan: "LIMPIAMOS TU MUNDO CUIDANDO EL PLANETA",
+    ruc: "1793231683001",
+    direccion: "Av. Diego de Almagro y Pradera",
+    ciudad: "Quito - Ecuador",
+    telefono: "099 922 4724",
+    correo: "info@cleaningsecuador.com",
+    web: "www.cleaningsecuador.com",
+    asesor: "María Fernanda - 098 350 4412",
+    logoUrl: "../../img/sello-cleanings.jpg"
+  },
+  ECCLEANINGS_EC: {
+    clave: "ECCLEANINGS_EC",
+    razonSocial: "ECCLEANINGS SAS",
+    subnombre: "ECCleanings EC",
+    eslogan: "LIMPIAMOS TU MUNDO CUIDANDO EL PLANETA",
+    ruc: "1793219028001",
+    direccion: "Av. Diego de Almagro y Pradera",
+    ciudad: "Quito - Ecuador",
+    telefono: "099 922 4724",
+    correo: "info@cleaningsecuador.com",
+    web: "www.cleaningsecuador.com",
+    asesor: "María Fernanda - 098 350 4412",
+    logoUrl: "../../img/sello-cleanings.jpg"
+  }
+};
 
 let clientes = [];
 let cotizaciones = [];
@@ -24,6 +55,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   document.getElementById("lblUsuarioActivoCRM").innerText = `👤 ${sesion.nombre} (${sesion.rol})`;
+
+  // Selector Global de Empresa en la esquina
+  const selEmpresaGlobal = document.getElementById("selEmpresaGlobalCRM");
+  selEmpresaGlobal.addEventListener("change", () => {
+    sincronizarSelectorEmpresaConFormulario();
+    sincronizarBotonesKPIEmpresa(selEmpresaGlobal.value);
+    renderizarTodo();
+  });
+
+  // Botones rápidos dentro de Pestaña 5 (Indicadores)
+  document.querySelectorAll(".btn-filtro-emp-kpi").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const empVal = btn.getAttribute("data-emp-kpi");
+      selEmpresaGlobal.value = empVal;
+      sincronizarSelectorEmpresaConFormulario();
+      sincronizarBotonesKPIEmpresa(empVal);
+      renderizarTodo();
+    });
+  });
 
   // Eventos Pestaña 1: Clientes
   document.getElementById("formCrearCliente").addEventListener("submit", guardarOModificarCliente);
@@ -55,6 +105,38 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await cargarBaseDatosCRM();
 });
+
+function obtenerEmpresaSeleccionadaGlobal() {
+  return document.getElementById("selEmpresaGlobalCRM")?.value || "TODAS";
+}
+
+function sincronizarSelectorEmpresaConFormulario() {
+  const empGlobal = obtenerEmpresaSeleccionadaGlobal();
+  if (!document.getElementById("editCotId").value && empGlobal !== "TODAS") {
+    document.getElementById("cotEmpresaEmisora").value = empGlobal;
+  }
+}
+
+function sincronizarBotonesKPIEmpresa(valor) {
+  document.querySelectorAll(".btn-filtro-emp-kpi").forEach(b => {
+    b.classList.toggle("active", b.getAttribute("data-emp-kpi") === valor);
+  });
+  const emp = EMPRESAS_HERMANAS[valor];
+  document.getElementById("lblAlcanceIndicadoresCRM").innerText = emp
+    ? `📊 Mostrando indicadores: ${emp.razonSocial} (RUC: ${emp.ruc})`
+    : "📊 Mostrando indicadores: TODAS LAS EMPRESAS (CONSOLIDADO)";
+}
+
+function badgeEmpresaEmisora(claveEmpresa) {
+  const emp = EMPRESAS_HERMANAS[claveEmpresa] || EMPRESAS_HERMANAS.CLEANINGSEC_CORP;
+  const esCorp = emp.clave === "CLEANINGSEC_CORP";
+  return `
+    <span class="badge ${esCorp ? "badge-emp-corp" : "badge-emp-ec"} px-2 py-1 d-block">
+      ${emp.razonSocial}
+    </span>
+    <small class="text-muted fw-bold" style="font-size: 0.68rem;">RUC: ${emp.ruc}</small>
+  `;
+}
 
 function mostrarAlertaCRM(msg) {
   const box = document.getElementById("msgFeedbackCRM");
@@ -96,12 +178,12 @@ function agregarFilaItemCotizacion(descripcion = "", valor = "") {
   fila.className = "row g-2 align-items-center fila-item-cot";
   fila.innerHTML = `
     <div class="col-12 col-md-8">
-      <input type="text" class="form-control form-control-sm txt-item-desc" placeholder="Ej: Servicio de decapado de pisos / Limpieza de mamparas de vidrio..." value="${descripcion}" required>
+      <input type="text" class="form-control form-control-sm txt-item-desc" placeholder="Ej: Servicio de decapado de pisos / Limpieza de mamparas de vidrio..." value="${descripcion}" autocomplete="off" required>
     </div>
     <div class="col-8 col-md-3">
       <div class="input-group input-group-sm">
         <span class="input-group-text fw-bold">$</span>
-        <input type="number" step="0.01" class="form-control form-control-sm fw-bold txt-item-valor" placeholder="Valor sin IVA" value="${valor}" required>
+        <input type="number" step="0.01" class="form-control form-control-sm fw-bold txt-item-valor" placeholder="Valor sin IVA" value="${valor}" autocomplete="off" required>
       </div>
     </div>
     <div class="col-4 col-md-1 text-end">
@@ -319,7 +401,7 @@ function renderizarTablaClientes() {
 }
 
 // =====================================================================
-// PESTAÑA 2: CREAR Y EDITAR COTIZACIONES (CON MÚLTIPLES RUBROS)
+// PESTAÑA 2: CREAR Y EDITAR COTIZACIONES (CON MÚLTIPLES RUBROS Y EMPRESA)
 // =====================================================================
 function poblarSelectorClientesEnCotizacion() {
   const sel = document.getElementById("cotSelectCliente");
@@ -361,6 +443,8 @@ function prepararEdicionCotizacion(cot) {
   document.getElementById("editCotId").value = cot.id;
   document.getElementById("editCotEstadoOriginal").value = cot.estado;
   document.getElementById("cotCodigo").value = cot.codigo_cotizacion;
+  document.getElementById("cotEmpresaEmisora").value = cot.empresa_emisora || "CLEANINGSEC_CORP";
+  document.getElementById("cotObservaciones").value = cot.observaciones_alcance || "";
 
   const cli = clientes.find(c => c.id === cot.cliente_id || c.ruc_cedula === cot.cliente_ruc);
   if (cli) {
@@ -398,6 +482,11 @@ function limpiarFormularioCotizacion() {
   document.getElementById("cotRucAuto").value = "";
   document.getElementById("cotContactoAuto").value = "";
   document.getElementById("cotCiudad").value = "Quito";
+  document.getElementById("cotObservaciones").value = "";
+
+  const empGlobal = obtenerEmpresaSeleccionadaGlobal();
+  document.getElementById("cotEmpresaEmisora").value = empGlobal !== "TODAS" ? empGlobal : "CLEANINGSEC_CORP";
+
   reiniciarFilasItemsCotizacion();
   generarCodigoCotizacionNuevo();
 
@@ -427,6 +516,7 @@ async function guardarOModificarCotizacion(e) {
     return;
   }
 
+  const empresaEmisora = document.getElementById("cotEmpresaEmisora").value || "CLEANINGSEC_CORP";
   const resumenTexto = items.map((it, i) => `${i + 1}. ${it.descripcion} ($${it.valor.toFixed(2)})`).join(" | ");
   const subtotal = parseFloat(document.getElementById("cotSubtotal").value) || 0;
   const iva = parseFloat(document.getElementById("cotIva").value) || 0;
@@ -439,6 +529,7 @@ async function guardarOModificarCotizacion(e) {
 
   const payload = {
     codigo_cotizacion: document.getElementById("cotCodigo").value.trim(),
+    empresa_emisora: empresaEmisora,
     cliente_id: cli.id,
     cliente_ruc: cli.ruc_cedula,
     cliente_nombre: cli.razon_social,
@@ -450,6 +541,7 @@ async function guardarOModificarCotizacion(e) {
     direccion_servicio: document.getElementById("cotDireccion").value.trim(),
     descripcion_servicio: resumenTexto,
     items_cotizados: items,
+    observaciones_alcance: (document.getElementById("cotObservaciones").value || "").trim(),
     subtotal,
     iva,
     total_cotizado: total,
@@ -467,6 +559,7 @@ async function guardarOModificarCotizacion(e) {
     await supabase
       .from("crm_servicios")
       .update({
+        empresa_emisora: empresaEmisora,
         cliente_nombre: cli.razon_social,
         nombre_punto: payload.direccion_servicio || cli.razon_social,
         ciudad: payload.ciudad,
@@ -481,7 +574,7 @@ async function guardarOModificarCotizacion(e) {
       alert("Error al guardar cotización: " + error.message);
       return;
     }
-    mostrarAlertaCRM(`✓ Cotización ${payload.codigo_cotizacion} generada con ${items.length} rubro(s).`);
+    mostrarAlertaCRM(`✓ Cotización ${payload.codigo_cotizacion} generada para ${EMPRESAS_HERMANAS[empresaEmisora].razonSocial}.`);
   }
 
   limpiarFormularioCotizacion();
@@ -492,12 +585,15 @@ function obtenerCotizacionesFiltradas() {
   const texto = (document.getElementById("txtFiltroGlobalCRM").value || "").toUpperCase().trim();
   const mes = document.getElementById("selMesGlobalCRM").value;
   const estado = document.getElementById("selEstadoGlobalCRM").value;
+  const empresa = obtenerEmpresaSeleccionadaGlobal();
 
   return cotizaciones.filter(c => {
+    const empCot = c.empresa_emisora || "CLEANINGSEC_CORP";
+    const pasaEmpresa = empresa === "TODAS" || empCot === empresa;
     const pasaEstado = estado === "TODOS" || c.estado === estado;
     const pasaMes = !mes || (c.creado_en && c.creado_en.startsWith(mes));
     const buscable = `${c.codigo_cotizacion} ${c.cliente_nombre} ${c.cliente_ruc || ""} ${c.descripcion_servicio}`.toUpperCase();
-    return pasaEstado && pasaMes && buscable.includes(texto);
+    return pasaEmpresa && pasaEstado && pasaMes && buscable.includes(texto);
   });
 }
 
@@ -517,7 +613,7 @@ function renderizarTablaCotizaciones() {
   tbody.innerHTML = "";
 
   if (lista.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Sin cotizaciones registradas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-3">Sin cotizaciones registradas para los filtros seleccionados.</td></tr>';
     return;
   }
 
@@ -527,21 +623,40 @@ function renderizarTablaCotizaciones() {
       ? "🔵 TERMINADO — FACTURAR"
       : (c.estado === "APROBADO" ? "🟢 APROBADO" : c.estado);
 
-    let acciones = `
-      <button class="btn btn-sm btn-outline-secondary py-0 px-2 fw-bold me-1" data-editar="${c.id}" title="Editar Cotización">✏️ Editar</button>
-      <button class="btn btn-sm btn-outline-dark py-0 px-2 fw-bold me-1" data-pdf="${c.id}">📄 PDF</button>
-      <button class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold me-1" data-mail="${c.id}">✉️ Correo</button>
-    `;
-
+    let filaAprobacion = "";
     if (c.estado === "PENDIENTE" || c.estado === "NO_APROBADO") {
-      acciones += `<button class="btn btn-sm btn-success py-0 px-2 fw-bold me-1" data-aprobar="${c.id}">✓ Aprobar y Enviar a Supervisión</button>`;
+      filaAprobacion = `
+        <div class="acciones-cot-fila">
+          <button class="btn btn-success btn-crm-accion" data-aprobar-srv="${c.id}" title="Enviar a Supervisión como Servicio Eventual">✓ Aprobado Servicio</button>
+          <button class="btn btn-primary btn-crm-accion" data-aprobar-ctr="${c.id}" title="Enviar a Supervisión como Contrato Mensual">📅 Contrato Mensual</button>
+        </div>
+      `;
     }
+
+    let filaRechazo = "";
     if (c.estado === "PENDIENTE") {
-      acciones += `<button class="btn btn-sm btn-outline-danger py-0 px-2 fw-bold" data-rechazar="${c.id}" title="Marcar No Aprobado">✖</button>`;
+      filaRechazo = `
+        <div class="acciones-cot-fila">
+          <button class="btn btn-outline-danger btn-crm-accion" data-rechazar="${c.id}" title="Marcar No Aprobado">✖ Marcar No Aprobado</button>
+        </div>
+      `;
     }
+
+    const acciones = `
+      <div class="acciones-cot-grid">
+        <div class="acciones-cot-fila">
+          <button class="btn btn-outline-secondary btn-crm-accion" data-editar="${c.id}" title="Editar Cotización">✏️ Editar</button>
+          <button class="btn btn-outline-dark btn-crm-accion" data-pdf="${c.id}" title="Ver / Descargar PDF">📄 PDF</button>
+          <button class="btn btn-outline-primary btn-crm-accion" data-mail="${c.id}" title="Enviar por Correo">✉️ Correo</button>
+        </div>
+        ${filaAprobacion}
+        ${filaRechazo}
+      </div>
+    `;
 
     tr.innerHTML = `
       <td class="fw-bold text-primary">${c.codigo_cotizacion}</td>
+      <td class="text-center">${badgeEmpresaEmisora(c.empresa_emisora)}</td>
       <td>${new Date(c.creado_en).toLocaleDateString("es-EC")}</td>
       <td><div class="fw-bold">${c.cliente_nombre}</div><small class="text-muted">${c.cliente_ruc || "-"}</small></td>
       <td><div>${c.cliente_contacto || "-"}</div><small class="text-primary">${c.cliente_correo || "-"} | ${c.cliente_telefono || ""}</small></td>
@@ -549,6 +664,7 @@ function renderizarTablaCotizaciones() {
         <span class="badge bg-secondary mb-1">${c.tipo_servicio || "SERVICIO"}</span>
         <small class="text-muted">(${c.direccion_servicio || c.ciudad})</small>
         ${formatearListaItemsHTML(c)}
+        ${c.observaciones_alcance ? `<div class="mt-1 p-1 rounded bg-light border-start border-2 border-info small text-muted"><em>Obs: ${c.observaciones_alcance}</em></div>` : ""}
       </td>
       <td class="fw-bold">$${parseFloat(c.subtotal).toFixed(2)}</td>
       <td class="fw-bold text-success">$${parseFloat(c.total_cotizado).toFixed(2)}</td>
@@ -557,9 +673,10 @@ function renderizarTablaCotizaciones() {
     `;
 
     tr.querySelector(`[data-editar="${c.id}"]`)?.addEventListener("click", () => prepararEdicionCotizacion(c));
-    tr.querySelector(`[data-pdf="${c.id}"]`)?.addEventListener("click", () => imprimirCotizacionPDF(c));
+    tr.querySelector(`[data-pdf="${c.id}"]`)?.addEventListener("click", () => abrirVistaPreviaPDFCotizacion(c));
     tr.querySelector(`[data-mail="${c.id}"]`)?.addEventListener("click", () => enviarCotizacionPorCorreo(c));
-    tr.querySelector(`[data-aprobar="${c.id}"]`)?.addEventListener("click", () => aprobarYCrearServicio(c));
+    tr.querySelector(`[data-aprobar-srv="${c.id}"]`)?.addEventListener("click", () => aprobarYCrearServicio(c));
+    tr.querySelector(`[data-aprobar-ctr="${c.id}"]`)?.addEventListener("click", () => aprobarComoContratoMensual(c));
     tr.querySelector(`[data-rechazar="${c.id}"]`)?.addEventListener("click", async () => {
       await supabase.from("crm_cotizaciones").update({ estado: "NO_APROBADO" }).eq("id", c.id);
       await cargarBaseDatosCRM();
@@ -580,6 +697,7 @@ async function aprobarYCrearServicio(cot) {
   const { error: errSrv } = await supabase.from("crm_servicios").upsert([{
     cotizacion_id: cot.id,
     codigo_servicio: codigoServicio,
+    empresa_emisora: cot.empresa_emisora || "CLEANINGSEC_CORP",
     cliente_nombre: cot.cliente_nombre,
     nombre_punto: cot.direccion_servicio || cot.cliente_nombre,
     ciudad: cot.ciudad || "Quito",
@@ -598,25 +716,60 @@ async function aprobarYCrearServicio(cot) {
     fecha_aprobacion: new Date().toISOString()
   }).eq("id", cot.id);
 
-  mostrarAlertaCRM(`🟢 Servicio ${codigoServicio} creado y enviado a SUPERVISIÓN para asignar responsable, personal, insumos y viáticos.`);
+  mostrarAlertaCRM(`🟢 Servicio ${codigoServicio} creado y enviado a SUPERVISIÓN.`);
   await cargarBaseDatosCRM();
   document.getElementById("btnIrTabServicios").click();
+  async function aprobarComoContratoMensual(cot) {
+  if (!confirm(`¿Aprobar la cotización ${cot.codigo_cotizacion} de "${cot.cliente_nombre}" como CONTRATO MENSUAL y enviarlo a SUPERVISIÓN (Pestaña Contratos)?`)) return;
+
+  const codigoContrato = cot.codigo_cotizacion.replace("COT-", "CTR-");
+
+  // Lógica preparada para enlazar con la pestaña Contratos de Supervisión en la siguiente fase
+  const { error } = await supabase.from("crm_cotizaciones").update({
+    estado: "APROBADO",
+    fecha_aprobacion: new Date().toISOString()
+  }).eq("id", cot.id);
+
+  if (error) {
+    alert("Error al aprobar como contrato mensual: " + error.message);
+    return;
+  }
+
+  mostrarAlertaCRM(`📅 Cotización aprobada como Contrato Mensual (${codigoContrato}). Lista para enlazar con Contratos en Supervisión.`);
+  await cargarBaseDatosCRM();
+}
+}
+
+function obtenerServiciosFiltrados() {
+  const texto = (document.getElementById("txtFiltroGlobalCRM").value || "").toUpperCase().trim();
+  const empresa = obtenerEmpresaSeleccionadaGlobal();
+
+  return servicios.filter(s => {
+    const cot = cotizaciones.find(c => c.id === s.cotizacion_id);
+    const empSrv = s.empresa_emisora || (cot ? cot.empresa_emisora : "CLEANINGSEC_CORP") || "CLEANINGSEC_CORP";
+    const pasaEmpresa = empresa === "TODAS" || empSrv === empresa;
+    const buscable = `${s.codigo_servicio} ${s.cliente_nombre} ${s.nombre_punto} ${s.supervisor_nombre || ""}`.toUpperCase();
+    return pasaEmpresa && buscable.includes(texto);
+  });
 }
 
 function renderizarTablaServicios() {
   const tbody = document.getElementById("tbodyServiciosActivos");
   tbody.innerHTML = "";
+  const lista = obtenerServiciosFiltrados();
 
-  if (servicios.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Aún no hay servicios aprobados.</td></tr>';
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Aún no hay servicios aprobados para el filtro seleccionado.</td></tr>';
     return;
   }
 
-  servicios.forEach(s => {
+  lista.forEach(s => {
     const cot = cotizaciones.find(c => c.id === s.cotizacion_id);
+    const empClave = s.empresa_emisora || (cot ? cot.empresa_emisora : "CLEANINGSEC_CORP");
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="fw-bold text-primary">${s.codigo_servicio}</td>
+      <td class="text-center">${badgeEmpresaEmisora(empClave)}</td>
       <td>${cot ? cot.codigo_cotizacion : "-"}</td>
       <td><div class="fw-bold">${s.cliente_nombre}</div><small class="text-muted">${s.ciudad} — ${s.nombre_punto}</small></td>
       <td class="fw-semibold">${s.supervisor_nombre ? `👷 ${s.supervisor_nombre}` : '<span class="text-danger">Pendiente en Supervisión</span>'}</td>
@@ -639,9 +792,16 @@ function renderizarTablaViaticosCRM() {
   const tbody = document.getElementById("tbodyViaticosCRM");
   const badgePend = document.getElementById("badgePendViaticosCRM");
   const badgeTotal = document.getElementById("badgeTotalViaticosCRM");
+  const empresa = obtenerEmpresaSeleccionadaGlobal();
 
-  const pendientes = viaticosSolicitados.filter(v => v.estado_viatico === "SOLICITADO_CRM").length;
-  badgeTotal.innerText = `${viaticosSolicitados.length} solicitudes`;
+  const filtrados = viaticosSolicitados.filter(v => {
+    const srv = servicios.find(s => s.id === v.servicio_id);
+    const empClave = srv ? (srv.empresa_emisora || "CLEANINGSEC_CORP") : "CLEANINGSEC_CORP";
+    return empresa === "TODAS" || empClave === empresa;
+  });
+
+  const pendientes = filtrados.filter(v => v.estado_viatico === "SOLICITADO_CRM").length;
+  badgeTotal.innerText = `${filtrados.length} solicitudes`;
   if (pendientes > 0) {
     badgePend.style.display = "inline-block";
     badgePend.innerText = pendientes;
@@ -650,13 +810,14 @@ function renderizarTablaViaticosCRM() {
   }
 
   tbody.innerHTML = "";
-  if (viaticosSolicitados.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-3">Aún no hay solicitudes de viáticos aprobadas desde Operaciones.</td></tr>';
+  if (filtrados.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Aún no hay solicitudes de viáticos aprobadas desde Operaciones.</td></tr>';
     return;
   }
 
-  viaticosSolicitados.forEach(v => {
+  filtrados.forEach(v => {
     const srv = servicios.find(s => s.id === v.servicio_id);
+    const empClave = srv ? (srv.empresa_emisora || "CLEANINGSEC_CORP") : "CLEANINGSEC_CORP";
     const entregado = v.estado_viatico === "ENTREGADO";
     const badgeEst = entregado
       ? '<span class="badge bg-success">✅ DESEMBOLSADO</span>'
@@ -665,6 +826,7 @@ function renderizarTablaViaticosCRM() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="fw-bold text-primary">${v.codigo_servicio}</td>
+      <td class="text-center">${badgeEmpresaEmisora(empClave)}</td>
       <td>
         <div class="fw-bold">${srv ? srv.cliente_nombre : "-"}</div>
         <small class="text-muted">Sup: ${srv ? (srv.supervisor_nombre || "-") : "-"}</small>
@@ -741,6 +903,13 @@ function calcularDesgloseFinancieroServicio(servicioId) {
 }
 
 function renderizarSemaforoYMatriz() {
+  const empresa = obtenerEmpresaSeleccionadaGlobal();
+  const cotsEmpresa = cotizaciones.filter(c => {
+    const empCot = c.empresa_emisora || "CLEANINGSEC_CORP";
+    return empresa === "TODAS" || empCot === empresa;
+  });
+  const srvsEmpresa = obtenerServiciosFiltrados();
+
   const estados = [
     { key: "PENDIENTE", id: "semCantPendiente" },
     { key: "NO_APROBADO", id: "semCantNoAprobado" },
@@ -750,7 +919,7 @@ function renderizarSemaforoYMatriz() {
 
   const conteos = [];
   estados.forEach(e => {
-    const sub = cotizaciones.filter(c => c.estado === e.key);
+    const sub = cotsEmpresa.filter(c => c.estado === e.key);
     const monto = sub.reduce((acc, x) => acc + (parseFloat(x.subtotal) || 0), 0);
     document.getElementById(e.id).innerText = `${sub.length} ($${monto.toFixed(2)})`;
     conteos.push(sub.length);
@@ -763,7 +932,9 @@ function renderizarSemaforoYMatriz() {
   const dataCotizado = [];
   const dataReal = [];
 
-  servicios.forEach(s => {
+  srvsEmpresa.forEach(s => {
+    const cot = cotizaciones.find(c => c.id === s.cotizacion_id);
+    const empClave = s.empresa_emisora || (cot ? cot.empresa_emisora : "CLEANINGSEC_CORP");
     const d = calcularDesgloseFinancieroServicio(s.id);
     const cotizado = parseFloat(s.presupuesto_cotizado) || 0;
     const utilidad = +(cotizado - d.totalReal).toFixed(2);
@@ -775,6 +946,7 @@ function renderizarSemaforoYMatriz() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="fw-bold text-primary">${s.codigo_servicio}</td>
+      <td class="text-center">${badgeEmpresaEmisora(empClave)}</td>
       <td><div class="fw-bold">${s.cliente_nombre}</div><small class="text-muted">Sup: ${s.supervisor_nombre || "Sin asignar"}</small></td>
       <td class="text-center">${badgeEstadoFlujo360(s.estado_flujo)}</td>
       <td class="fw-bold text-primary">$${cotizado.toFixed(2)}</td>
@@ -817,13 +989,15 @@ function renderizarSemaforoYMatriz() {
 }
 
 function abrirDetalle360Servicio(s) {
+  const cot = cotizaciones.find(c => c.id === s.cotizacion_id);
+  const emp = EMPRESAS_HERMANAS[s.empresa_emisora || (cot ? cot.empresa_emisora : "CLEANINGSEC_CORP")];
   const d = calcularDesgloseFinancieroServicio(s.id);
   const via = viaticosSolicitados.find(v => v.servicio_id === s.id);
   const cotizado = parseFloat(s.presupuesto_cotizado) || 0;
   const utilidad = +(cotizado - d.totalReal).toFixed(2);
 
   document.getElementById("tituloModalDetalleCRM").innerText =
-    `🔍 Expediente 360°: ${s.codigo_servicio} — ${s.cliente_nombre}`;
+    `🔍 Expediente 360°: ${s.codigo_servicio} — ${s.cliente_nombre} (${emp.razonSocial})`;
 
   const filasBodega = d.itemsBodega.map(b => {
     const noDev = Math.max(0, (parseFloat(b.cantidad_entregada) || 0) - (parseFloat(b.cantidad_devuelta) || 0));
@@ -851,10 +1025,10 @@ function abrirDetalle360Servicio(s) {
   document.getElementById("cuerpoModalDetalleCRM").innerHTML = `
     <div class="p-2 mb-3 border rounded bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div>
+        <strong>Empresa:</strong> ${emp.razonSocial} (RUC ${emp.ruc}) |
         <strong>Supervisor:</strong> ${s.supervisor_nombre || "Sin asignar"} |
         <strong>Bodega Entregada:</strong> ${s.bodega_entregado ? "✅ Sí" : "⏳ No"} |
-        <strong>Campo Cerrado:</strong> ${s.campo_cerrado ? "✅ Sí" : "⏳ No"} |
-        <strong>Bodega Cerrada:</strong> ${s.bodega_cerrado ? "✅ Sí" : "⏳ No"}
+        <strong>Campo Cerrado:</strong> ${s.campo_cerrado ? "✅ Sí" : "⏳ No"}
       </div>
       <div>${badgeEstadoFlujo360(s.estado_flujo)}</div>
     </div>
@@ -894,59 +1068,161 @@ function abrirDetalle360Servicio(s) {
 }
 
 function enviarCotizacionPorCorreo(c) {
+  const emp = EMPRESAS_HERMANAS[c.empresa_emisora] || EMPRESAS_HERMANAS.CLEANINGSEC_CORP;
   const desglose = Array.isArray(c.items_cotizados) && c.items_cotizados.length > 0
     ? c.items_cotizados.map((it, i) => `  ${i + 1}. ${it.descripcion}: $${parseFloat(it.valor).toFixed(2)}`).join("\n")
     : `  • ${c.descripcion_servicio}: $${parseFloat(c.subtotal).toFixed(2)}`;
 
-  const subject = encodeURIComponent(`Cotización ${c.codigo_cotizacion} - Cleanings Ecuador`);
+  const obsTexto = c.observaciones_alcance
+    ? `\nALCANCE Y OBSERVACIONES:\n${c.observaciones_alcance}\n`
+    : "";
+
+  const subject = encodeURIComponent(`Cotización ${c.codigo_cotizacion} - ${emp.razonSocial}`);
   const body = encodeURIComponent(
     `Estimado/a ${c.cliente_contacto || c.cliente_nombre},\n\n` +
-    `Remitimos para su revisión la Cotización N° ${c.codigo_cotizacion}:\n\n` +
-    `DESGLOSE DE SERVICIOS:\n${desglose}\n\n` +
+    `Remitimos para su revisión la Cotización N° ${c.codigo_cotizacion} emitida por ${emp.razonSocial} (RUC: ${emp.ruc}):\n\n` +
+    `DESGLOSE DE SERVICIOS:\n${desglose}\n` +
+    `${obsTexto}\n` +
     `Subtotal: $${parseFloat(c.subtotal).toFixed(2)}\n` +
     `IVA (15%): $${parseFloat(c.iva).toFixed(2)}\n` +
     `Total: $${parseFloat(c.total_cotizado).toFixed(2)}\n\n` +
-    `Atentamente,\nDepartamento Comercial`
+    `Atentamente,\n${emp.razonSocial}\n${emp.asesor}\n${emp.correo} | ${emp.web}`
   );
-  window.open(`mailto:${c.cliente_correo}?subject=${subject}&body=${body}`, "_blank");
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(c.cliente_correo)}&su=${subject}&body=${body}`;
+  window.open(gmailUrl, "_blank");
 }
 
-function imprimirCotizacionPDF(c) {
-  const filasItems = Array.isArray(c.items_cotizados) && c.items_cotizados.length > 0
-    ? c.items_cotizados.map((it, i) => `<tr><td>${i + 1}</td><td>${it.descripcion}</td><td style="text-align:right;">$${parseFloat(it.valor).toFixed(2)}</td></tr>`).join("")
-    : `<tr><td>1</td><td>${c.descripcion_servicio}</td><td style="text-align:right;">$${parseFloat(c.subtotal).toFixed(2)}</td></tr>`;
+// =====================================================================
+// VISTA PREVIA PDF EN VENTANA MODAL + DESCARGA DIRECTA (.PDF)
+// =====================================================================
+function abrirVistaPreviaPDFCotizacion(c) {
+  const emp = EMPRESAS_HERMANAS[c.empresa_emisora] || EMPRESAS_HERMANAS.CLEANINGSEC_CORP;
+  const fechaFormateada = new Date(c.creado_en).toLocaleDateString("es-EC");
 
-  const v = window.open("", "_blank");
-  v.document.write(`
-    <html><head><title>Cotización ${c.codigo_cotizacion}</title>
-    <style>
-      body{font-family:Arial;padding:30px;color:#0f172a}
-      .box{border:1px solid #cbd5e1;padding:15px;border-radius:8px;margin-top:15px}
-      table{width:100%;border-collapse:collapse;margin-top:10px}
-      th,td{border:1px solid #cbd5e1;padding:8px;font-size:13px}
-      th{background:#0f172a;color:#fff}
-    </style></head>
-    <body>
-      <h2>PROPUESTA TÉCNICA Y ECONÓMICA — ${c.codigo_cotizacion}</h2>
-      <div class="box">
-        <p><strong>Cliente:</strong> ${c.cliente_nombre} | <strong>RUC:</strong> ${c.cliente_ruc || "-"}</p>
-        <p><strong>Contacto:</strong> ${c.cliente_contacto || "-"} | <strong>Correo:</strong> ${c.cliente_correo || "-"}</p>
-        <p><strong>Dirección / Punto:</strong> ${c.ciudad} - ${c.direccion_servicio || "-"}</p>
-      </div>
-      <div class="box">
-        <h4>Desglose de Servicios Cotizados (${c.tipo_servicio})</h4>
-        <table>
-          <thead><tr><th style="width:40px;">#</th><th>Descripción del Servicio / Rubro</th><th style="width:130px;">Valor Sin IVA</th></tr></thead>
-          <tbody>${filasItems}</tbody>
-        </table>
-        <div style="text-align:right; margin-top:12px;">
-          <p><strong>Subtotal:</strong> $${parseFloat(c.subtotal).toFixed(2)}</p>
-          <p><strong>IVA 15%:</strong> $${parseFloat(c.iva).toFixed(2)}</p>
-          <h3>TOTAL COTIZADO: $${parseFloat(c.total_cotizado).toFixed(2)}</h3>
+  const filasItems = Array.isArray(c.items_cotizados) && c.items_cotizados.length > 0
+    ? c.items_cotizados.map(it => {
+        const val = parseFloat(it.valor) || 0;
+        return `
+          <tr>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #cbd5e1; color: #0f172a; font-size: 13px;">
+              <strong>${it.descripcion}</strong>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">One Time — ${c.tipo_servicio || "SERVICIO ESPECIALIZADO"}</div>
+            </td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #cbd5e1; text-align: right; font-size: 13px;">${val.toFixed(2)}</td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #cbd5e1; text-align: center; font-size: 13px;">1</td>
+            <td style="padding: 12px 10px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: bold; font-size: 13px;">$${val.toFixed(2)}</td>
+          </tr>
+        `;
+      }).join("")
+    : `
+      <tr>
+        <td style="padding: 12px 10px; border-bottom: 1px solid #cbd5e1; font-size: 13px;"><strong>${c.descripcion_servicio}</strong></td>
+        <td style="padding: 12px 10px; border-bottom: 1px solid #cbd5e1; text-align: right; font-size: 13px;">${parseFloat(c.subtotal).toFixed(2)}</td>
+        <td style="padding: 12px 10px; border-bottom: 1px solid #cbd5e1; text-align: center; font-size: 13px;">1</td>
+        <td style="padding: 12px 10px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: bold; font-size: 13px;">$${parseFloat(c.subtotal).toFixed(2)}</td>
+      </tr>
+    `;
+
+  const htmlDocumento = `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0284c7; padding-bottom: 18px; margin-bottom: 22px;">
+      <div>
+        <img src="${emp.logoUrl}" alt="Sello Institucional" style="max-height: 58px; object-fit: contain; margin-bottom: 6px;">
+        <div style="font-weight: 900; font-size: 18px; color: #0284c7; letter-spacing: 0.5px;">${emp.razonSocial}</div>
+        <div style="font-size: 10px; font-weight: 700; color: #16a34a; letter-spacing: 0.8px; margin-bottom: 8px;">${emp.eslogan}</div>
+        <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+          <div><strong>RUC: ${emp.ruc}</strong></div>
+          <div>${emp.direccion}</div>
+          <div>${emp.ciudad}</div>
+          <div>Tel: ${emp.telefono}</div>
         </div>
       </div>
-      <script>window.print();<\/script>
-    </body></html>
-  `);
-  v.document.close();
+
+      <div style="text-align: right; font-size: 12.5px; color: #334155;">
+        <div style="background: #f0f9ff; border: 1px solid #bae6fd; padding: 10px 16px; border-radius: 8px; margin-bottom: 12px;">
+          <div style="font-size: 11px; color: #0369a1; font-weight: 700;">COTIZACIÓN N°</div>
+          <div style="font-size: 18px; font-weight: 900; color: #0f172a;">${c.codigo_cotizacion}</div>
+          <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Fecha de cotización: ${fechaFormateada}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 22px; font-size: 12.5px; line-height: 1.6;">
+      <div style="font-weight: 800; color: #0284c7; font-size: 11px; letter-spacing: 0.6px; margin-bottom: 4px;">DATOS DEL CLIENTE</div>
+      <div><strong>Cliente:</strong> ${c.cliente_nombre}</div>
+      <div><strong>RUC:</strong> ${c.cliente_ruc || "-"}</div>
+      <div><strong>Dirección:</strong> ${c.ciudad} — ${c.direccion_servicio || "-"}</div>
+      <div><strong>Correo electrónico:</strong> ${c.cliente_correo || "-"} | <strong>Teléfono de contacto:</strong> ${c.cliente_telefono || "-"}</div>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+      <thead>
+        <tr style="border-bottom: 2px solid #0f172a; color: #0f172a; font-size: 12px; text-transform: uppercase;">
+          <th style="padding: 8px 10px; text-align: left;">Item</th>
+          <th style="padding: 8px 10px; text-align: right; width: 100px;">Precio Unitario</th>
+          <th style="padding: 8px 10px; text-align: center; width: 60px;">Cantidad</th>
+          <th style="padding: 8px 10px; text-align: right; width: 110px;">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filasItems}
+      </tbody>
+    </table>
+
+    ${c.observaciones_alcance ? `
+      <div style="background: #f8fafc; border-left: 3px solid #0284c7; padding: 10px 14px; margin-bottom: 18px; font-size: 12px; color: #334155; white-space: pre-line;">
+        <div style="font-weight: 800; color: #0284c7; font-size: 11px; margin-bottom: 3px;">ALCANCE Y OBSERVACIONES DEL SERVICIO:</div>
+        ${c.observaciones_alcance}
+      </div>
+    ` : ""}
+
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 28px;">
+      <table style="width: 260px; border-collapse: collapse; font-size: 13px;">
+        <tr>
+          <td style="padding: 6px 10px; color: #475569;">Subtotal</td>
+          <td style="padding: 6px 10px; text-align: right; font-weight: 600;">$${parseFloat(c.subtotal).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 10px; color: #475569; border-bottom: 1px solid #cbd5e1;">IVA (15%)</td>
+          <td style="padding: 6px 10px; text-align: right; font-weight: 600; border-bottom: 1px solid #cbd5e1;">$${parseFloat(c.iva).toFixed(2)}</td>
+        </tr>
+        <tr style="background: #f0f9ff;">
+          <td style="padding: 10px; font-weight: 800; color: #0284c7; font-size: 14px;">Total</td>
+          <td style="padding: 10px; text-align: right; font-weight: 900; color: #0f172a; font-size: 15px;">$${parseFloat(c.total_cotizado).toFixed(2)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="border-top: 1px solid #cbd5e1; padding-top: 14px; font-size: 11.5px; color: #475569; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <div style="font-weight: 700; color: #0f172a;">${emp.asesor}</div>
+        <div>La cotización tiene una validez de 30 días</div>
+      </div>
+      <div style="text-align: right; color: #0284c7; font-weight: 600;">
+        ${emp.correo} - ${emp.web}
+      </div>
+    </div>
+  `;
+
+  document.getElementById("tituloModalPDF").innerText = `📄 Cotización ${c.codigo_cotizacion} — ${emp.razonSocial}`;
+  const hoja = document.getElementById("contenedorHojaPDF");
+  hoja.innerHTML = htmlDocumento;
+
+  document.getElementById("btnDescargarArchivoPDF").onclick = () => {
+    const nombreArchivo = `COTIZACION_${c.codigo_cotizacion}_${c.cliente_nombre.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+    window.html2pdf().set({
+      margin: 10,
+      filename: nombreArchivo,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    }).from(hoja).save();
+  };
+
+  document.getElementById("btnImprimirDesdeModalPDF").onclick = () => {
+    const v = window.open("", "_blank");
+    v.document.write(`<html><head><title>${c.codigo_cotizacion}</title></head><body style="font-family:Arial;padding:20px;">${hoja.innerHTML}<script>window.print();<\/script></body></html>`);
+    v.document.close();
+  };
+
+  new window.bootstrap.Modal(document.getElementById("modalVistaPreviaPDF")).show();
 }

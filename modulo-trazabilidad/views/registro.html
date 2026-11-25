@@ -99,7 +99,7 @@
     </div>
   </div>
 
-  <!-- ========================================== -->
+ <!-- ========================================== -->
   <!-- VISTA 2: MÓDULO REGISTRO EXITOSO           -->
   <!-- ========================================== -->
   <div id="moduloExito" style="display: none; max-width: 520px; margin: 20px auto; background: #ffffff; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.12); border: 1px solid #e2e8f0; overflow: hidden;">
@@ -114,7 +114,7 @@
       <!-- SELLO INSTITUCIONAL -->
       <div class="my-3" style="min-height: 80px; display: flex; align-items: center; justify-content: center;">
         <img 
-          src="https://drive.google.com/thumbnail?id=14SqUGvm7kp9-WbKZI85KwjSr-JCUUoXO&sz=w500" 
+          src="../../img/sello-cleanings.jpg" 
           alt="Sello Institucional Cleanings Ecuador" 
           style="max-height: 75px; max-width: 100%; object-fit: contain;">
       </div>
@@ -155,15 +155,18 @@
         </div>
       </div>
 
-      <button type="button" class="btn btn-primary w-100 py-3 fw-bold shadow-sm" id="btnNuevoRegistro">
+      <div class="alert alert-info py-2 small fw-bold mb-3" id="lblCierreAuto">
+        ⏳ Cerrando automáticamente en <span id="segCierre">3</span> segundos...
+      </div>
+
+      <button type="button" class="btn btn-primary w-100 py-3 fw-bold shadow-sm" id="btnNuevoRegistro" style="display: none;">
         ← Volver al Módulo de Registro
       </button>
     </div>
   </div>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="module" src="../js/registro.ctrl.js"></script>
-<script>
+  <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('../../sw.js').catch(err => console.warn('SW:', err));
     }

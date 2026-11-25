@@ -12,6 +12,7 @@ import {
   obtenerMapaPisosAreasPorContrato
 } from "../../core/router.js";
 import { inicializarMonitorOffline, sincronizarColaPendiente } from "../../core/offlineSync.js";
+
 // Esquema exacto de columnas según el modelo para exportar idéntico a Auditoría.docx
 const COLUMNAS_MODELO = {
   BANOS: [
@@ -56,9 +57,8 @@ const COLUMNAS_MODELO = {
     { key: "banos", label: "BAÑO ANEXO" },
     { key: "dispensadores", label: "DISPENSADORES" },
     { key: "sillas", label: "SILLAS" }
-  ]
-};
-NOCRITICA: [
+  ],
+  NOCRITICA: [
     { key: "techos", label: "TECHOS" },
     { key: "paredes", label: "PAREDES" },
     { key: "pisos", label: "PISOS" },
@@ -70,6 +70,7 @@ NOCRITICA: [
     { key: "dispensadores", label: "DISPENSADORES" },
     { key: "sillas", label: "SILLAS" }
   ]
+};
 
 let catalogoGlobal = {};
 let mapaContratos = {};
@@ -80,22 +81,35 @@ let usuarioIdActual = null;
 let contratoFijo = "";
 let pisoFijo = "";
 let areaFija = "";
+let esSoloLectura = false;
 
 document.addEventListener("DOMContentLoaded", async () => {
   inicializarMonitorOffline();
   if (navigator.onLine) {
     await sincronizarColaPendiente();
   }
+
   const urlParams = obtenerParametrosURL();
+  const queryRaw = new URLSearchParams(window.location.search);
   const sesion = obtenerSesionActiva();
 
-  rolActual = homologarRol(urlParams.rol || (sesion ? sesion.rol : "SUPERVISOR"));
-  auditorActual = urlParams.usuario || (sesion ? sesion.nombre : "SUPERVISOR");
-  usuarioIdActual = sesion ? sesion.id : null;
+  esSoloLectura = queryRaw.get("modo") === "solo_lectura";
 
-  contratoFijo = urlParams.contrato || (sesion ? sesion.qrContrato : "");
-  pisoFijo = urlParams.piso || (sesion ? sesion.qrPiso : "");
-  areaFija = urlParams.area || (sesion ? sesion.qrArea : "");
+  if (esSoloLectura) {
+    rolActual = "INVITADO";
+    auditorActual = "INVITADO AUDITORÍA";
+    usuarioIdActual = null;
+    aplicarInterfazSoloLectura();
+  } else {
+    rolActual = homologarRol(urlParams.rol || (sesion ? sesion.rol : "SUPERVISOR"));
+    auditorActual = urlParams.usuario || (sesion ? sesion.nombre : "SUPERVISOR");
+    usuarioIdActual = sesion ? sesion.id : null;
+  }
+
+  // Captura segura de parámetros QR (decodificando espacios y tildes)
+  contratoFijo = (queryRaw.get("contrato") || urlParams.contrato || (sesion ? sesion.qrContrato : "") || "").trim();
+  pisoFijo = (queryRaw.get("piso") || urlParams.piso || (sesion ? sesion.qrPiso : "") || "").trim();
+  areaFija = (queryRaw.get("area") || urlParams.area || (sesion ? sesion.qrArea : "") || "").trim();
 
   // Eventos
   document.getElementById("btnVolverMenu").addEventListener("click", () => {
@@ -118,7 +132,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function verificarPermisoFirma() {
   const btnFirma = document.getElementById("btnFirmarAuditoria");
-  if (btnFirma && (rolActual === "SUPERVISOR" || rolActual === "CONTROL")) {
+  if (btnFirma && !esSoloLectura && (rolActual === "SUPERVISOR" || rolActual === "CONTROL")) {
     btnFirma.style.display = "inline-block";
   }
 }
@@ -129,7 +143,7 @@ async function iniciarCargaContratos() {
 
   try {
     let contratos = [];
-    if (usuarioIdActual) {
+    if (usuarioIdActual && !esSoloLectura) {
       contratos = await obtenerContratosAutorizados(usuarioIdActual, rolActual);
     } else {
       const { data } = await supabase
@@ -149,8 +163,12 @@ async function iniciarCargaContratos() {
       selContrato.appendChild(opt);
     });
 
-    if (contratoFijo && mapaContratos[contratoFijo]) {
-      selContrato.value = contratoFijo;
+    const codMatch = Object.keys(mapaContratos).find(
+      k => k.trim().toUpperCase() === contratoFijo.toUpperCase()
+    );
+
+    if (codMatch) {
+      selContrato.value = codMatch;
     } else if (contratos.length > 0) {
       selContrato.value = contratos[0].codigo_contrato;
     }
@@ -179,6 +197,7 @@ async function alCambiarContrato() {
 
   if (listaPisos.length === 0) {
     selectPiso.innerHTML = '<option value="">Sin áreas registradas</option>';
+    aplicarSeguridadRol();
     return;
   }
 
@@ -190,13 +209,22 @@ async function alCambiarContrato() {
     selectPiso.appendChild(opt);
   });
 
-  if (pisoFijo && catalogoGlobal[pisoFijo]) {
-    selectPiso.value = pisoFijo;
+  const pisoMatch = listaPisos.find(
+    p => p.trim().toUpperCase() === pisoFijo.toUpperCase()
+  );
+
+  if (pisoMatch) {
+    selectPiso.value = pisoMatch;
     cargarAreasPorPiso();
     if (areaFija) {
       const selectArea = document.getElementById("filtroArea");
-      selectArea.value = areaFija;
-      alCambiarArea();
+      const optMatch = Array.from(selectArea.options).find(
+        o => o.value.trim().toUpperCase() === areaFija.toUpperCase()
+      );
+      if (optMatch) {
+        selectArea.value = optMatch.value;
+        alCambiarArea();
+      }
     }
   } else {
     cargarAreasPorPiso();
@@ -205,12 +233,35 @@ async function alCambiarContrato() {
   aplicarSeguridadRol();
 }
 
+function aplicarInterfazSoloLectura() {
+  ["btnVolverMenu", "btnFirmarAuditoria", "btnFiltrar", "btnLimpiar"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-secondary text-center py-2 small fw-bold mb-3 no-print";
+  banner.innerText = "👁️ MODO AUDITORÍA (SOLO LECTURA) — Visualización y exportación a PDF habilitadas";
+  document.body.prepend(banner);
+}
+
 function aplicarSeguridadRol() {
   const selContrato = document.getElementById("filtroContrato");
   const selectPiso = document.getElementById("filtroPiso");
   const selectArea = document.getElementById("filtroArea");
 
-  // Si el auditor solo tiene 1 contrato asignado (ej. AUDITOR SIME), bloquea el contrato pero le deja libre todos los pisos y áreas de su sede
+  // MODO SOLO LECTURA: Bloquea Contrato, Piso y Área según el QR; deja libre el Mes y Exportar PDF
+  if (esSoloLectura) {
+    [selContrato, selectPiso, selectArea].forEach(el => {
+      if (el) {
+        el.disabled = true;
+        el.classList.add("bg-light");
+      }
+    });
+    return;
+  }
+
+  // Si el auditor solo tiene 1 contrato asignado, bloquea el contrato pero le deja libre todos los pisos y áreas de su sede
   if (rolActual !== "CONTROL" && selContrato.options.length <= 1) {
     selContrato.disabled = true;
     selContrato.classList.add("bg-light");
@@ -247,7 +298,7 @@ function cargarAreasPorPiso() {
     selectArea.appendChild(opt);
   });
 
-  if (rolActual === "CONTROL" || !areaFija) {
+  if (!esSoloLectura && (rolActual === "CONTROL" || !areaFija)) {
     selectArea.disabled = false;
   }
   btnFiltrar.disabled = true;
@@ -308,7 +359,6 @@ async function consultarDatos() {
   cuerpoATP.innerHTML = '<tr><td colspan="11" class="text-center py-3 text-muted">Buscando hisopados ATP en el área...</td></tr>';
 
   try {
-    // 1. Consultar limpiezas del área
     const { data: limpiezas, error: errLimp } = await supabase
       .from("trazabilidad_registros_limpieza")
       .select("*")
@@ -328,7 +378,6 @@ async function consultarDatos() {
 
     renderizarTablaLimpiezas(limpiezasFiltradas, area);
 
-    // 2. Consultar hisopados ATP del área
     const { data: hisopados, error: errATP } = await supabase
       .from("trazabilidad_registros_atp")
       .select("*")
@@ -381,7 +430,6 @@ function renderizarTablaLimpiezas(registros, areaActual) {
     return;
   }
 
-  // Construir cabecera idéntica a la hoja original
   const encabezados = [
     "FECHA", "HORA", "PISO", "ÁREA", "TIPO LIMPIEZA",
     ...colsChecklist.map(c => c.label),
@@ -396,12 +444,10 @@ function renderizarTablaLimpiezas(registros, areaActual) {
   });
   cabecera.appendChild(trHead);
 
-  // Construir filas
   registros.forEach(reg => {
     const tr = document.createElement("tr");
     const chk = reg.checklist || {};
 
-    // Fecha, Hora, Piso, Área
     tr.innerHTML = `
       <td class="text-center fw-bold">${formatearFechaLatam(reg.fecha_registro)}</td>
       <td class="text-center fw-bold">${(reg.hora_registro || "").slice(0, 8)}</td>
@@ -409,7 +455,6 @@ function renderizarTablaLimpiezas(registros, areaActual) {
       <td class="text-center">${reg.nombre_area || ""}</td>
     `;
 
-    // Tipo Limpieza
     const tdTipo = document.createElement("td");
     tdTipo.className = "text-center";
     const tipoUpper = (reg.tipo_limpieza || "Concurrente").toUpperCase();
@@ -420,7 +465,6 @@ function renderizarTablaLimpiezas(registros, areaActual) {
     }
     tr.appendChild(tdTipo);
 
-    // Ítems del checklist (✓ / ✗)
     colsChecklist.forEach(col => {
       const tdChk = document.createElement("td");
       tdChk.className = "text-center";
@@ -433,13 +477,11 @@ function renderizarTablaLimpiezas(registros, areaActual) {
       tr.appendChild(tdChk);
     });
 
-    // Auxiliar Responsable
     const tdAux = document.createElement("td");
     tdAux.className = "text-center";
     tdAux.textContent = reg.auxiliar_nombre || "";
     tr.appendChild(tdAux);
 
-    // Revisado Por (Nombre arriba, fecha/hora abajo cursiva oculta en impresión)
     const tdRev = document.createElement("td");
     tdRev.className = "text-center";
     const revRaw = (reg.revisado_por_nombre || "PENDIENTE").trim();
@@ -455,7 +497,6 @@ function renderizarTablaLimpiezas(registros, areaActual) {
     }
     tr.appendChild(tdRev);
 
-    // Observaciones
     const tdObs = document.createElement("td");
     tdObs.textContent = reg.observaciones || "Sin novedades";
     tr.appendChild(tdObs);
@@ -520,10 +561,9 @@ function renderizarTablaLuminometria(datos) {
   });
 }
 
-/**
- * FIRMA AUTOMÁTICA CON JERARQUÍA ESTRICTA (CONTROL PREVALECE SIEMPRE SOBRE SUPERVISOR)
- */
 async function ejecutarFirmaAutomatica() {
+  if (esSoloLectura) return;
+
   const codContrato = document.getElementById("filtroContrato").value || contratoFijo;
   const infoContrato = mapaContratos[codContrato];
   const piso = document.getElementById("filtroPiso").value || pisoFijo;
@@ -567,10 +607,8 @@ async function ejecutarFirmaAutomatica() {
       const firmadoHoy = revActual.includes(hoyTexto);
 
       if (rolActual === "CONTROL") {
-        // ROL CONTROL: Jerarquía máxima, sobreescribe todo
         idsParaActualizar.push(r.id);
       } else if (rolActual === "SUPERVISOR") {
-        // ROL SUPERVISOR: Respeta las firmas hechas por CONTROL
         if (rolPrevio === "CONTROL") return;
         if (estaPendiente || firmadoHoy) {
           idsParaActualizar.push(r.id);

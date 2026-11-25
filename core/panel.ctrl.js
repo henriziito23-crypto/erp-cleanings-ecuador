@@ -37,10 +37,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   document.getElementById("formAcceso").addEventListener("submit", validarIngresoPIN);
-  document.getElementById("btnSalir").addEventListener("click", cerrarSesionTrazabilidad);
+  document.getElementById("btnSalir").addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    cerrarSesionTrazabilidad();
+  });
   document.getElementById("selContratoActivo").addEventListener("change", alCambiarContratoActivo);
   document.getElementById("txtBuscarContrato").addEventListener("input", filtrarComboContratos);
-
+  document.getElementById("formAccesoCorreo")?.addEventListener("submit", validarIngresoCorreo);
+  
   // Botones de navegación entre el Hub Central, Control de Contratos y Trazabilidad
   document.getElementById("btnAbrirModuloContratos").addEventListener("click", async () => {
     const sesion = obtenerSesionActiva();
@@ -154,27 +158,28 @@ async function validarIngresoPIN(e) {
   let usuario = null;
 
   try {
-    const { data, error } = await supabase.rpc("login_por_pin", {
-      pin_entrada: pin
+    // 1. Validar PIN en el servidor y obtener sesión JWT real
+    const { data: resp, error: fnError } = await supabase.functions.invoke("login-pin", {
+      body: { pin }
     });
 
-    if (error) throw error;
-    usuario = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    if (fnError || !resp?.usuario || !resp?.session) {
+      throw new Error(resp?.error || "PIN incorrecto o usuario inactivo.");
+    }
+
+    // 2. Guardar la sesión JWT real en el navegador (para pasar RLS)
+    const { error: sessErr } = await supabase.auth.setSession({
+      access_token: resp.session.access_token,
+      refresh_token: resp.session.refresh_token
+    });
+    if (sessErr) throw sessErr;
+
+    usuario = resp.usuario;
   } catch (errConexion) {
     btn.disabled = false;
     btn.innerText = "🔐 Validar Acceso al ERP";
-    err.innerText = "Error de conexión con el servidor al validar credenciales.";
+    err.innerText = errConexion.message || "Error de conexión con el servidor al validar credenciales.";
     err.style.display = "block";
-    return;
-  }
-
-  if (!usuario) {
-    btn.disabled = false;
-    btn.innerText = "🔐 Validar Acceso al ERP";
-    err.innerText = "Código PIN no registrado o usuario inactivo.";
-    err.style.display = "block";
-    input.value = "";
-    input.focus();
     return;
   }
 
@@ -231,6 +236,65 @@ async function validarIngresoPIN(e) {
   btn.disabled = false;
   btn.innerText = "🔐 Validar Acceso al ERP";
   await enrutarSegunRol(sesion, false);
+}
+
+async function validarIngresoCorreo(e) {
+  e.preventDefault();
+  const email = (document.getElementById("txtCorreoAuth").value || "").trim();
+  const password = document.getElementById("txtPassAuth").value || "";
+  const btn = document.getElementById("btnIngresarCorreo");
+  const err = document.getElementById("msgErrorCorreo");
+
+  if (!navigator.onLine) {
+    err.innerText = "📡 Se requiere conexión a internet para iniciar sesión.";
+    err.style.display = "block";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerText = "Validando credenciales...";
+  err.style.display = "none";
+
+  try {
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) throw new Error("Correo o contraseña incorrectos.");
+
+    const { data, error: perfilError } = await supabase.rpc("mi_perfil_erp");
+    if (perfilError) throw perfilError;
+
+    const usuario = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    if (!usuario) {
+      await supabase.auth.signOut();
+      throw new Error("Cuenta sin perfil activo vinculado en el ERP.");
+    }
+
+    const rol = homologarRol(usuario.rol);
+    const tieneQR = (parametrosQR.piso !== "" && parametrosQR.area !== "");
+
+    if (rol === "SUPERVISOR") {
+      if (!tieneQR) {
+        await supabase.auth.signOut();
+        throw new Error("⛔ ACCESO RESTRINGIDO:\nDebe ingresar escaneando el código QR físico del área.");
+      }
+      const contratosAsignados = await obtenerContratosAutorizados(usuario.id, rol);
+      const codigosPermitidos = contratosAsignados.map(c => c.codigo_contrato.toUpperCase());
+      if (parametrosQR.contrato && !codigosPermitidos.includes(parametrosQR.contrato.toUpperCase())) {
+        await supabase.auth.signOut();
+        throw new Error(`⛔ ACCESO DENEGADO AL CONTRATO [${parametrosQR.contrato}].`);
+      }
+    }
+
+    sessionStorage.removeItem("erp_vista_activa");
+    const sesion = guardarSesionActiva(usuario, parametrosQR);
+    btn.disabled = false;
+    btn.innerText = "🛡️ Iniciar Sesión Segura";
+    await enrutarSegunRol(sesion, false);
+  } catch (ex) {
+    btn.disabled = false;
+    btn.innerText = "🛡️ Iniciar Sesión Segura";
+    err.innerText = ex.message || "Error al iniciar sesión.";
+    err.style.display = "block";
+  }
 }
 
 async function enrutarSegunRol(sesion, esRetornoDeSubvista) {
